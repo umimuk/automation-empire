@@ -79,8 +79,9 @@ class Game:
         elif s == "result":
             self.buttons["cont"] = Button(40, 272, 160, 36, "次へ")
         elif s == "mishap":
-            # Mishap event screen - just acknowledge
-            self.buttons["ok"] = Button(40, 268, 160, 36, "了解…")
+            # Mishap choice screen - 4 choice buttons
+            for i in range(4):
+                self.buttons[f"ch{i}"] = Button(12, 126 + i * 44, 216, 40, "")
         elif s == "ai_detail":
             self.buttons["defrag"] = Button(40, 236, 160, 32, "デフラグ")
             self.buttons["back"] = Button(40, 276, 160, 36, "戻る")
@@ -166,11 +167,39 @@ class Game:
 
     def update_result(self):
         if self.buttons["cont"].clicked():
-            self.change_scene("office")
+            if self.mishap_event and self.mishap_event.get("choices"):
+                self.change_scene("mishap")
+            else:
+                self.change_scene("office")
 
     def update_mishap(self):
-        if self.buttons["ok"].clicked():
+        if not self.mishap_event:
             self.change_scene("office")
+            return
+        choices = self.mishap_event.get("choices", [])
+        for i, choice in enumerate(choices):
+            key = f"ch{i}"
+            if key in self.buttons and self.buttons[key].clicked():
+                self._apply_choice(choice)
+                self.mishap_event = None
+                self.change_scene("office")
+                return
+
+    def _apply_choice(self, choice):
+        """Apply the effect of a mishap choice."""
+        cost = choice.get("cost", 0)
+        rep = choice.get("rep", 0)
+        if choice.get("gamble", False):
+            if random.random() < 0.5:
+                result_text = choice.get("result_text", "Success!")
+            else:
+                result_text = choice.get("gamble_fail_text", "Failed.")
+                rep += choice.get("gamble_fail_rep", 0)
+        else:
+            result_text = choice.get("result_text", "")
+        self.coins = max(0, self.coins + cost)
+        self.rep_rank = max(0, min(len(REP_RANKS) - 1, self.rep_rank + rep))
+        self.naviko_msg = result_text
 
     def update_ai_detail(self):
         if self.buttons["defrag"].clicked():
@@ -649,6 +678,48 @@ class Game:
             y += 66
 
         self.buttons["cont"].draw(self.font, C_DGRAY, C_WHITE, C_GRAY)
+
+    def draw_mishap(self):
+        pyxel.cls(C_BLACK)
+
+        # Header
+        text_centered(6, "WHAT WILL YOU DO?", C_RED, self.font_s)
+        pyxel.line(0, 20, WIDTH, 20, C_DGRAY)
+
+        # Mishap text (up to 3 lines)
+        if self.mishap_event:
+            y = 26
+            for line in self.mishap_event["text"].split("\n"):
+                text_centered(y, line, C_PINK, self.font_s)
+                y += 14
+
+        # Naviko comment area
+        pyxel.rect(0, 76, WIDTH, 44, C_NAVY)
+        pyxel.rectb(0, 76, WIDTH, 44, C_DGRAY)
+        pyxel.circ(16, 96, 8, C_LAVENDER)
+        pyxel.text(10, 93, "Nav", C_WHITE, self.font_s)
+        msg_lines = self.naviko_msg.split("\n") if self.naviko_msg else ["..."]
+        pyxel.text(32, 82, msg_lines[0], C_WHITE, self.font_s)
+        if len(msg_lines) > 1:
+            pyxel.text(32, 96, msg_lines[1], C_WHITE, self.font_s)
+        if len(msg_lines) > 2:
+            pyxel.text(32, 110, msg_lines[2], C_WHITE, self.font_s)
+
+        # Choice buttons
+        if self.mishap_event:
+            choices = self.mishap_event.get("choices", [])
+            for i, choice in enumerate(choices):
+                key = f"ch{i}"
+                if key in self.buttons:
+                    btn = self.buttons[key]
+                    pyxel.rect(btn.x, btn.y, btn.w, btn.h, C_NAVY)
+                    pyxel.rectb(btn.x, btn.y, btn.w, btn.h, C_GRAY)
+                    lines = choice["text"].split("\n")
+                    if len(lines) == 1:
+                        pyxel.text(btn.x + 8, btn.y + (btn.h - 12) // 2, lines[0], C_WHITE, self.font_s)
+                    else:
+                        pyxel.text(btn.x + 8, btn.y + 6, lines[0], C_WHITE, self.font_s)
+                        pyxel.text(btn.x + 8, btn.y + 20, lines[1], C_WHITE, self.font_s)
 
     def draw_ai_detail(self):
         pyxel.cls(C_BLACK)

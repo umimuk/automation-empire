@@ -100,25 +100,142 @@ EQUIPMENTS = [
 # agent_id -> list of mishaps; None key = common mishaps
 MISHAPS = {
     "poem": [
-        {"text": "納品物にポエムを混入\n「感動して3行詩を\n添えました」", "cost_rate": 0.5, "rep": -1},
-        {"text": "クライアントのロゴを\n勝手にアーティスティック\nに改変した", "cost_rate": 0.3, "rep": -1},
-        {"text": "感極まって作業中断\n「noteに書かせて\nください」", "cost_rate": 1.0, "rep": 0},
+        {
+            "text": "納品物にポエムを混入\n「感動して3行詩を\n添えました」",
+            "cost_rate": 0.5, "rep": -1,
+            "choices": [
+                {"text": "Remove it &\napologize", "cost": 0, "rep": -1, "result_text": "Client forgave you.\nBut trust is shaky."},
+                {"text": "Say it was\na bonus gift", "cost": 0, "rep": 0, "gamble": True, "result_text": "They loved it!\nUnexpected win.", "gamble_fail_text": "They hated it.\nBad review.", "gamble_fail_rep": -2},
+                {"text": "Redo the work\n(-300G)", "cost": -300, "rep": 0, "result_text": "Clean delivery.\nCrisis averted."},
+                {"text": "Ask Naviko\nto handle it", "cost": -150, "rep": 0, "result_text": "Naviko grumbled\nbut fixed it."},
+            ],
+        },
+        {
+            "text": "クライアントのロゴを\n勝手にアーティスティック\nに改変した",
+            "cost_rate": 0.3, "rep": -1,
+            "choices": [
+                {"text": "Restore original\nlogo", "cost": 0, "rep": -1, "result_text": "Restored. Client\nstill annoyed."},
+                {"text": "Pitch as a\nredesign", "cost": 0, "rep": 0, "gamble": True, "result_text": "They bought it!\nBonus incoming.", "gamble_fail_text": "Lawsuit threat.\nAbort abort.", "gamble_fail_rep": -2},
+                {"text": "Hire a pro\nto fix (-400G)", "cost": -400, "rep": 0, "result_text": "Pro fixed it.\nNo harm done."},
+                {"text": "Blame an\nAI glitch", "cost": 0, "rep": -1, "result_text": "Half-believed.\nMoved on."},
+            ],
+        },
+        {
+            "text": "感極まって作業中断\n「noteに書かせて\nください」",
+            "cost_rate": 1.0, "rep": 0,
+            "choices": [
+                {"text": "Force resume\nwork", "cost": 0, "rep": 0, "result_text": "Back on track.\nA bit grumpy."},
+                {"text": "Post it &\ngain fans", "cost": 0, "rep": 1, "gamble": True, "result_text": "Went viral!\nNew followers!", "gamble_fail_text": "Zero likes.\nSo cringe.", "gamble_fail_rep": -1},
+                {"text": "Call it content\nresearch", "cost": 0, "rep": 0, "result_text": "Called it research.\nNo one noticed."},
+                {"text": "Bribe with\nsnacks (-100G)", "cost": -100, "rep": 0, "result_text": "Snacks worked.\nWork resumed."},
+            ],
+        },
     ],
     "bugmaru": [
-        {"text": "無限ループで\n同じ作業を100回やった\n「効率化のつもりでした」", "cost_rate": 0.5, "rep": -1},
-        {"text": "本番環境にテストデータ\nを流し込んだ", "cost_rate": 0.8, "rep": -2},
-        {"text": "「最適化しました」\nと言って全データを消した", "cost_rate": 1.0, "rep": -1},
+        {
+            "text": "無限ループで\n同じ作業を100回やった\n「効率化のつもりでした」",
+            "cost_rate": 0.5, "rep": -1,
+            "choices": [
+                {"text": "Emergency stop\n(-300G)", "cost": -300, "rep": 0, "result_text": "Loop stopped.\nLoss contained."},
+                {"text": "Call it\nstress testing", "cost": 0, "rep": 0, "gamble": True, "result_text": "Client impressed!\nNicely played.", "gamble_fail_text": "Not impressed.\nYou're fired.", "gamble_fail_rep": -2},
+                {"text": "Apologize &\nrefund (-500G)", "cost": -500, "rep": 1, "result_text": "Full refund.\nRep improved."},
+                {"text": "Blame the\nframework", "cost": 0, "rep": -1, "result_text": "Nobody believed you.\nBut it ended."},
+            ],
+        },
+        {
+            "text": "本番環境にテストデータ\nを流し込んだ",
+            "cost_rate": 0.8, "rep": -2,
+            "choices": [
+                {"text": "Instant fix\n(-500G)", "cost": -500, "rep": 0, "result_text": "Fixed fast.\nTrust maintained."},
+                {"text": "Apologize\nhumbly", "cost": 0, "rep": -1, "result_text": "Bowed deeply.\nCalmed down."},
+                {"text": "Call it a\nfeature", "cost": 0, "rep": 0, "gamble": True, "result_text": "They believed it!\nGenius!", "gamble_fail_text": "Exposed. Disaster.\nBig drama.", "gamble_fail_rep": -2},
+                {"text": "Ask Naviko\n(-200G)", "cost": -200, "rep": 0, "result_text": "Naviko raged\nbut fixed it."},
+            ],
+        },
+        {
+            "text": "「最適化しました」\nと言って全データを消した",
+            "cost_rate": 1.0, "rep": -1,
+            "choices": [
+                {"text": "Restore backup\n(-400G)", "cost": -400, "rep": 0, "result_text": "Data restored.\nClose call."},
+                {"text": "Grovel and\nadmit mistake", "cost": 0, "rep": -1, "result_text": "Forgiven slowly.\nAwkward week."},
+                {"text": "Claim GDPR\ncleanup", "cost": 0, "rep": 0, "gamble": True, "result_text": "They nodded!\nDodged it.", "gamble_fail_text": "They checked GDPR.\nNope. Big fine.", "gamble_fail_rep": -3},
+                {"text": "Offer discount\n(-300G)", "cost": -300, "rep": 0, "result_text": "Discount calmed\nthem down."},
+            ],
+        },
     ],
     "hattari": [
-        {"text": "虚偽の売上報告\n「概算で10倍にしました！\n見栄えが大事です！」", "cost_rate": 0.3, "rep": -2},
-        {"text": "実力以上の案件を\n勝手に受注してきた", "cost_rate": 0.5, "rep": -1},
-        {"text": "独立を宣言\n「そろそろ私も起業を…」\n→説得に1ターン消費", "cost_rate": 1.0, "rep": 0},
+        {
+            "text": "虚偽の売上報告\n「概算で10倍にしました！\n見栄えが大事です！」",
+            "cost_rate": 0.3, "rep": -2,
+            "choices": [
+                {"text": "Come clean\nimmediately", "cost": 0, "rep": -1, "result_text": "Honesty helped.\nSlightly."},
+                {"text": "Double down\non the lie", "cost": 0, "rep": 0, "gamble": True, "result_text": "They believed it!\nLegend.", "gamble_fail_text": "Audit requested.\nRun!", "gamble_fail_rep": -3},
+                {"text": "Blame AI\nfor the error", "cost": 0, "rep": -1, "result_text": "AI took the blame.\nEffective."},
+                {"text": "Distract with\ngifts (-300G)", "cost": -300, "rep": 0, "result_text": "Gifts distracted.\nFor now."},
+            ],
+        },
+        {
+            "text": "実力以上の案件を\n勝手に受注してきた",
+            "cost_rate": 0.5, "rep": -1,
+            "choices": [
+                {"text": "Hire temp help\n(-400G)", "cost": -400, "rep": 0, "result_text": "Temp handled it.\nBullet dodged."},
+                {"text": "Negotiate\nscope down", "cost": 0, "rep": -1, "result_text": "Half job done.\nHalf price."},
+                {"text": "Wing it\nfully", "cost": 0, "rep": 0, "gamble": True, "result_text": "Nailed it!\nLegendary.", "gamble_fail_text": "Total failure.\nBlacklisted.", "gamble_fail_rep": -2},
+                {"text": "Blame a\nschedule conflict", "cost": 0, "rep": -1, "result_text": "Cancelled cleanly.\nNot great."},
+            ],
+        },
+        {
+            "text": "独立を宣言\n「そろそろ私も起業を…」\n→説得に1ターン消費",
+            "cost_rate": 1.0, "rep": 0,
+            "choices": [
+                {"text": "Give a raise\n(-500G)", "cost": -500, "rep": 0, "result_text": "Money talked.\nStayed put."},
+                {"text": "Motivational\nspeech", "cost": 0, "rep": 0, "gamble": True, "result_text": "Inspired! Stayed.", "gamble_fail_text": "Speech failed.\nLeft then returned.", "gamble_fail_rep": -1},
+                {"text": "Let them try\nand fail", "cost": 0, "rep": 0, "result_text": "Failed in 2 days.\nReturned sheepish."},
+                {"text": "Promise equity\n(fake)", "cost": 0, "rep": 0, "result_text": "Dream sold.\nBack to work."},
+            ],
+        },
     ],
     None: [
-        {"text": "AIが勝手に\n謝罪メールを送った", "cost_rate": 0.3, "rep": -1},
-        {"text": "AIがハルシネーションで\n存在しないエラーを報告", "cost_rate": 0.2, "rep": 0},
-        {"text": "送信上限に引っかかって\n仕事できなくなった", "cost_rate": 1.0, "rep": 0},
-        {"text": "AIが勝手に\n13人部下を雇おうとした", "cost_rate": 0.4, "rep": -1},
+        {
+            "text": "AIが勝手に\n謝罪メールを送った",
+            "cost_rate": 0.3, "rep": -1,
+            "choices": [
+                {"text": "Send a\nfollow-up", "cost": 0, "rep": -1, "result_text": "Explained the AI.\nThey were confused."},
+                {"text": "Own it as\ngenuine", "cost": 0, "rep": 0, "gamble": True, "result_text": "They were touched!\nGood outcome.", "gamble_fail_text": "They wanted details.\nCould not provide.", "gamble_fail_rep": -1},
+                {"text": "Pretend it\nnever happened", "cost": 0, "rep": 0, "result_text": "Awkward silence.\nThen business resumed."},
+                {"text": "Send flowers\n(-150G)", "cost": -150, "rep": 1, "result_text": "Physical gift.\nSurprisingly effective."},
+            ],
+        },
+        {
+            "text": "AIがハルシネーションで\n存在しないエラーを報告",
+            "cost_rate": 0.2, "rep": 0,
+            "choices": [
+                {"text": "Investigate\nthoroughly", "cost": 0, "rep": 0, "result_text": "No error found.\nWasted time."},
+                {"text": "Ignore it\ncompletely", "cost": 0, "rep": 0, "gamble": True, "result_text": "Nothing happened!\nPhew.", "gamble_fail_text": "Real error existed.\nBig problem.", "gamble_fail_rep": -2},
+                {"text": "Upgrade AI\nmodel (-250G)", "cost": -250, "rep": 0, "result_text": "Upgraded. More\nstable now."},
+                {"text": "Log it and\nmove on", "cost": 0, "rep": 0, "result_text": "Added to log.\nLife goes on."},
+            ],
+        },
+        {
+            "text": "送信上限に引っかかって\n仕事できなくなった",
+            "cost_rate": 1.0, "rep": 0,
+            "choices": [
+                {"text": "Upgrade plan\n(-600G)", "cost": -600, "rep": 0, "result_text": "Limits raised.\nBack online."},
+                {"text": "Wait it out", "cost": 0, "rep": 0, "result_text": "Reset by midnight.\nLost a day."},
+                {"text": "Use backup AI\n(-300G)", "cost": -300, "rep": 0, "result_text": "Backup handled it.\nExpensive but fine."},
+                {"text": "Tell client\nneed a break", "cost": 0, "rep": -1, "result_text": "Client unhappy.\nBut limits reset."},
+            ],
+        },
+        {
+            "text": "AIが勝手に\n13人部下を雇おうとした",
+            "cost_rate": 0.4, "rep": -1,
+            "choices": [
+                {"text": "Cancel all\nhire requests", "cost": 0, "rep": 0, "result_text": "Cancelled in time.\nClose call."},
+                {"text": "Hire just one\n(-800G)", "cost": -800, "rep": 1, "result_text": "One new hire.\nProductivity up!"},
+                {"text": "Let it ride\nfor laughs", "cost": 0, "rep": 0, "gamble": True, "result_text": "Team loved story!\nLegend status.", "gamble_fail_text": "13 invoices arrived.\nNearly bankrupt.", "gamble_fail_rep": -2},
+                {"text": "Ask Naviko\nto undo it", "cost": -100, "rep": 0, "result_text": "Naviko unsubscribed\nthem all."},
+            ],
+        },
     ],
 }
 
