@@ -301,7 +301,7 @@ class Game:
                 msg = NAVIKO_LINES["route_aptitude"].format(
                     route=route_name, name=self.ai_agent.name
                 )
-            elif abs(self.route_cursor - self.ai_agent.aptitude_route) == 2:
+            elif self.route_cursor == AI_WEAKNESS.get(self.ai_agent.ai_type):
                 msg = NAVIKO_LINES["route_mismatch"].format(
                     route=route_name, name=self.ai_agent.name
                 )
@@ -421,6 +421,7 @@ class Game:
 
     def _refresh_shop(self):
         """ショップの商品リストを更新"""
+        self.shop_cursor = 0
         if self.ai_agent:
             self.shop_items = self.job_mgr.get_available_jobs(
                 self.ai_agent.level, self.ai_agent.route
