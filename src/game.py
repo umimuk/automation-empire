@@ -13,7 +13,7 @@ from src.text_util import (
 
 class Game:
     def __init__(self):
-        pyxel.init(SCREEN_W, SCREEN_H, title="Automation Empire", fps=FPS)
+        pyxel.init(SCREEN_W, SCREEN_H, title="Automation Empire", fps=FPS, quit_key=pyxel.KEY_NONE)
 
         # ゲーム状態
         self.scene = SCENE_TITLE
