@@ -210,7 +210,14 @@ class Game:
         if self.agents and fatigue != 0:
             a = self.agents[0]
             a["fatigue"] = max(0, min(10, a["fatigue"] + fatigue))
-        self.naviko_msg = result_text
+        # Build result message with cost display
+        if cost > 0:
+            cost_text = f"（+{cost}G）"
+        elif cost < 0:
+            cost_text = f"（{cost}G）"
+        else:
+            cost_text = "（±0G）"
+        self.naviko_msg = f"{result_text}\n{cost_text}"
 
     def update_ai_detail(self):
         if self.buttons["defrag"].clicked():

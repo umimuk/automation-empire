@@ -231,8 +231,8 @@ MISHAPS = {
             "cost_rate": 0.4, "rep": -1,
             "choices": [
                 {"text": "全部キャンセルする", "cost": 0, "rep": 0, "result_text": "間に合った。\n危なかった…"},
-                {"text": "1人だけ雇って強化", "cost": -800, "rep": 1, "fatigue": -2, "result_text": "1人追加！\n生産性も負荷もイイ感じ！"},
-                {"text": "ネタとして\n受け入れる", "gamble": True, "cost": 500, "rep": 1, "result_text": "チームに大ウケ！\n伝説のエピソードに。", "gamble_fail_text": "13人分の請求書。\n破産寸前。", "gamble_fail_rep": -2, "gamble_fail_cost": -1000},
+                {"text": "1人だけ雇って強化", "cost": -800, "rep": 0, "result_text": "雇ったけどメモリ不足で\nフリーズ。使い物にならず…"},
+                {"text": "ネタとして\n受け入れる", "gamble": True, "cost": 0, "rep": 0, "result_text": "13人起動→即メモリ不足。\n全員フリーズして終了。", "gamble_fail_text": "13人分の請求が来た。\nしかも全員フリーズ。最悪。", "gamble_fail_rep": -2, "gamble_fail_cost": -1000},
                 {"text": "ナビ子に\n取り消してもらう", "cost": -100, "rep": 0, "result_text": "ナビ子が全員\n解約してくれた。"},
             ],
         },
