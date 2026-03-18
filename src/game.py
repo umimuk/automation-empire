@@ -83,6 +83,7 @@ class Game:
                 self.select_idx = i
                 self.naming_name = STARTERS[i]["name"]
                 self.change_scene("naming")
+                return
 
     def update_naming(self):
         if self.buttons["rand"].clicked():
