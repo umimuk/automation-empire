@@ -1,4 +1,4 @@
-"""Main game logic for 自動化帝国 (Phase 1)."""
+"""Main game logic for 自動化帝国 (Phase 2)."""
 
 import pyxel
 import random
@@ -6,8 +6,10 @@ import random
 from src.constants import (
     WIDTH, HEIGHT, FONT_MAIN, FONT_SMALL,
     C_BLACK, C_NAVY, C_DGREEN, C_BROWN, C_DGRAY, C_GRAY, C_WHITE,
-    C_YELLOW, C_GREEN, C_SKYBLUE, C_LAVENDER, C_PINK,
+    C_RED, C_YELLOW, C_GREEN, C_SKYBLUE, C_LAVENDER, C_PINK, C_ORANGE, C_PEACH,
     REP_RANKS, STARTERS, RANDOM_NAMES,
+    ALL_JOBS, EQUIPMENTS, MISHAPS, NAVIKO_MISHAP, NAVIKO_SUCCESS,
+    AI_WEAKNESS, AI_STRENGTH,
 )
 from src.ui import Button, text_centered, draw_panel
 
@@ -28,14 +30,26 @@ class Game:
         # Game state
         self.week = 0
         self.coins = 0
-        self.rep_rank = 0
+        self.rep_rank = 0  # index into REP_RANKS
         self.agents = []
+        self.owned_equip = []  # list of equipment names
+
+        # Job state
+        self.available_jobs = []  # jobs shown on board this turn
+        self.selected_job = None  # index into available_jobs
+        self.current_job = None  # the job dict being executed
+
+        # Turn result state
+        self.turn_log = []
+        self.turn_earned = 0
+        self.mishap_event = None  # current mishap dict or None
 
         # UI state
         self.select_idx = 0
         self.naming_name = ""
-        self.turn_log = []
         self.naviko_msg = ""
+        self.job_scroll = 0  # scroll offset for job board
+        self.equip_scroll = 0  # scroll offset for equip shop
 
         self._setup_scene()
         pyxel.run(self.update, self.draw)
@@ -63,8 +77,30 @@ class Game:
             self.buttons["next"] = Button(124, 268, bw, bh, "進む")
         elif s == "result":
             self.buttons["cont"] = Button(40, 272, 160, 36, "次へ")
-        elif s in ("ai_detail", "job_board"):
+        elif s == "mishap":
+            # Mishap event screen - just acknowledge
+            self.buttons["ok"] = Button(40, 268, 160, 36, "了解…")
+        elif s == "ai_detail":
             self.buttons["back"] = Button(40, 276, 160, 36, "戻る")
+        elif s == "job_board":
+            self._refresh_job_board()
+            # Job buttons are created in _refresh_job_board
+            self.buttons["back"] = Button(8, 276, 100, 36, "戻る")
+        elif s == "equip_shop":
+            self.equip_scroll = 0
+            self.buttons["back"] = Button(8, 276, 100, 36, "戻る")
+
+    def _refresh_job_board(self):
+        """Generate available jobs based on reputation rank."""
+        self.available_jobs = []
+        for job in ALL_JOBS:
+            if job["rank"] <= self.rep_rank:
+                self.available_jobs.append(job)
+        self.selected_job = None
+        self.job_scroll = 0
+        # Create job slot buttons (max 4 visible)
+        for i in range(min(len(self.available_jobs), 4)):
+            self.buttons[f"job{i}"] = Button(16, 44 + i * 54, 208, 48, "")
 
     # ── Update dispatch ──
 
@@ -105,6 +141,7 @@ class Game:
             self.week = 1
             self.coins = 1000
             self.rep_rank = 0
+            self.current_job = None
             self.naviko_msg = (
                 f"{self.naming_name}を雇った！\n"
                 "まずは案件をこなそう。"
@@ -114,14 +151,23 @@ class Game:
     def update_office(self):
         if self.buttons["next"].clicked():
             self._do_turn()
-        elif self.buttons["ai"].clicked():
+            return
+        if self.buttons["ai"].clicked():
             self.change_scene("ai_detail")
-        elif self.buttons["jobs"].clicked():
+            return
+        if self.buttons["jobs"].clicked():
             self.change_scene("job_board")
-        # equip: Phase 2+
+            return
+        if self.buttons["equip"].clicked():
+            self.change_scene("equip_shop")
+            return
 
     def update_result(self):
         if self.buttons["cont"].clicked():
+            self.change_scene("office")
+
+    def update_mishap(self):
+        if self.buttons["ok"].clicked():
             self.change_scene("office")
 
     def update_ai_detail(self):
@@ -131,6 +177,63 @@ class Game:
     def update_job_board(self):
         if self.buttons["back"].clicked():
             self.change_scene("office")
+            return
+        # Check job slot clicks
+        visible_count = min(len(self.available_jobs) - self.job_scroll, 4)
+        for i in range(visible_count):
+            key = f"job{i}"
+            if key in self.buttons and self.buttons[key].clicked():
+                job_idx = self.job_scroll + i
+                if self.selected_job == job_idx:
+                    # Double tap = accept job
+                    self.current_job = self.available_jobs[job_idx]
+                    a = self.agents[0]
+                    a["status"] = f"{self.current_job['name']}"
+                    self.naviko_msg = (
+                        f"「{self.current_job['name']}」を\n"
+                        "受注した！「進む」で実行。"
+                    )
+                    self.change_scene("office")
+                else:
+                    self.selected_job = job_idx
+                return
+
+    def update_equip_shop(self):
+        if self.buttons["back"].clicked():
+            self.change_scene("office")
+            return
+        # Check equip slot clicks
+        visible = self._visible_equips()
+        for i, eq in enumerate(visible):
+            key = f"eq{i}"
+            if key in self.buttons and self.buttons[key].clicked():
+                if eq["name"] not in self.owned_equip and self.coins >= eq["cost"]:
+                    self.coins -= eq["cost"]
+                    self.owned_equip.append(eq["name"])
+                    self.naviko_msg = (
+                        f"「{eq['name']}」を購入！\n"
+                        f"{eq['desc']}"
+                    )
+                    self.change_scene("office")
+                return
+
+    def _visible_equips(self):
+        """Get visible equipment list and create buttons."""
+        visible = []
+        for i, eq in enumerate(EQUIPMENTS):
+            if i < self.equip_scroll:
+                continue
+            if len(visible) >= 4:
+                break
+            visible.append(eq)
+        # Recreate buttons (keep back)
+        back_btn = self.buttons.get("back")
+        self.buttons = {}
+        if back_btn:
+            self.buttons["back"] = back_btn
+        for i, eq in enumerate(visible):
+            self.buttons[f"eq{i}"] = Button(16, 44 + i * 54, 208, 48, "")
+        return visible
 
     # ── Turn logic ──
 
@@ -138,40 +241,182 @@ class Game:
         a = self.agents[0]
         yr, mo, wk = self._week_to_date(self.week)
 
-        # Simple placeholder: data entry job
-        earned = random.randint(80, 200)
+        job = self.current_job
+        if job is None:
+            # No job selected - default simple task
+            job = {"name": "データ入力", "pay": 100, "diff": "★", "stat": None, "threshold": 0, "rank": 0}
+
+        # Calculate earnings
+        base_pay = job["pay"]
+        pay_variance = random.randint(-20, 30)
+        earned = base_pay + pay_variance
+
+        # Stat bonus
+        stat_name = job.get("stat")
+        stat_val = 0
+        if stat_name and stat_name in a["stats"]:
+            stat_val = a["stats"][stat_name]
+            # Bonus for high stat
+            if stat_val >= job.get("threshold", 0):
+                earned = int(earned * (1.0 + stat_val * 0.05))
+
+        # Equipment bonus
+        equip_bonus = self._calc_equip_bonus(stat_name)
+        earned = int(earned * (1.0 + equip_bonus / 100.0))
+
+        # Strength bonus (適性)
+        agent_strength = AI_STRENGTH.get(a["id"])
+        is_strong = (stat_name and agent_strength == stat_name)
+        if is_strong:
+            earned = int(earned * 1.3)
+
+        # Check for mishap (やらかし)
+        mishap_chance = self._calc_mishap_chance(a, job)
+        mishap = None
+        if random.random() < mishap_chance:
+            mishap = self._pick_mishap(a)
+
+        if mishap:
+            # Mishap happened!
+            cost = int(earned * mishap["cost_rate"])
+            earned = earned - cost
+            if earned < 0:
+                earned = 0
+
+            # Rep change from mishap
+            rep_change = mishap.get("rep", 0)
+            self.rep_rank = max(0, min(len(REP_RANKS) - 1, self.rep_rank + rep_change))
+
+            self.coins += earned
+            a["exp"] += 5  # less exp on mishap
+            a["fatigue"] = min(10, a["fatigue"] + 2)
+            a["status"] = "やらかし…"
+
+            self.turn_log = [
+                f"{yr}年目 {mo}月 第{wk}週",
+                "",
+                f"{a['name']}が",
+                f"「{job['name']}」を実行…",
+                "",
+                "!! やらかし発生 !!",
+                "",
+            ]
+            if earned > 0:
+                self.turn_log.append(f"+{earned}G（減額…）")
+            else:
+                self.turn_log.append("収益ゼロ…")
+
+            self.mishap_event = mishap
+            self.naviko_msg = random.choice(NAVIKO_MISHAP)
+
+            self.week += 1
+            self._check_levelup(a)
+            self.change_scene("result")
+            return
+
+        # Success path
+        # Determine result quality
+        quality = "成功"
+        if stat_val >= 7 and random.random() < 0.3:
+            quality = "大成功"
+            earned = int(earned * 1.5)
+            self.rep_rank = min(len(REP_RANKS) - 1, self.rep_rank + 1)
+        elif stat_name and stat_val < job.get("threshold", 0):
+            quality = "微妙"
+            earned = int(earned * 0.6)
+
         self.coins += earned
-        a["exp"] += 10
-        a["status"] = "作業中"
+        a["exp"] += 15 if is_strong else 10
+        a["fatigue"] = min(10, a["fatigue"] + 1)
+        a["status"] = "作業完了"
 
         self.turn_log = [
             f"{yr}年目 {mo}月 第{wk}週",
             "",
             f"{a['name']}が",
-            "データ入力をこなした！",
+            f"「{job['name']}」を実行！",
             "",
-            f"+{earned} コイン",
         ]
 
-        # Level up check
-        if a["exp"] >= a["level"] * 50:
-            a["exp"] = 0
-            a["level"] += 1
-            self.turn_log.append("")
-            self.turn_log.append(f"★ Lv.{a['level']}にアップ！")
-
-        # Naviko message
-        if self.week % 4 == 0:
-            self.naviko_msg = f"{mo}月終了！\n所持: {self.coins}G"
+        if quality == "大成功":
+            self.turn_log.append(f"★★ 大成功！ +{earned}G")
+            self.naviko_msg = "やるじゃん！大成功！"
+        elif quality == "微妙":
+            self.turn_log.append(f"+{earned}G（微妙…）")
+            self.naviko_msg = "うーん、微妙だね。\nスキル上げた方がいいかも。"
         else:
-            msgs = [
-                "順調だね。", "まあまあかな。",
-                "この調子！", "悪くないよ。", "頑張ってるね。",
-            ]
-            self.naviko_msg = random.choice(msgs)
+            self.turn_log.append(f"+{earned}G")
+            self.naviko_msg = random.choice(NAVIKO_SUCCESS)
+
+        # Level up check
+        self._check_levelup(a)
+
+        # Monthly report
+        if self.week % 4 == 0:
+            self.naviko_msg = (
+                f"{mo}月終了！\n"
+                f"所持: {self.coins}G  評判:{REP_RANKS[self.rep_rank]}"
+            )
+
+        # Fatigue recovery hint
+        if a["fatigue"] >= 6:
+            self.turn_log.append("")
+            self.turn_log.append("⚠ 疲労が溜まってる…")
 
         self.week += 1
+        self.mishap_event = None
         self.change_scene("result")
+
+    def _calc_equip_bonus(self, stat_name):
+        """Calculate equipment bonus percentage for a given stat."""
+        bonus = 0
+        for eq in EQUIPMENTS:
+            if eq["name"] in self.owned_equip:
+                if eq["stat"] is None:
+                    # Universal bonus (server rack)
+                    bonus += eq["bonus"]
+                elif eq["stat"] == stat_name:
+                    bonus += eq["bonus"]
+        return bonus
+
+    def _calc_mishap_chance(self, agent, job):
+        """Calculate mishap probability."""
+        base = 0.12
+        # Weakness penalty
+        stat_name = job.get("stat")
+        weaknesses = AI_WEAKNESS.get(agent["id"], [])
+        if stat_name and stat_name in weaknesses:
+            base += 0.15
+        # Accuracy reduces mishap
+        accuracy = agent["stats"].get("正確", 0)
+        base -= accuracy * 0.01
+        # Fatigue increases mishap
+        base += agent["fatigue"] * 0.02
+        # Level reduces mishap
+        base -= agent["level"] * 0.01
+        return max(0.03, min(0.5, base))
+
+    def _pick_mishap(self, agent):
+        """Pick a random mishap for this agent."""
+        pool = list(MISHAPS.get(agent["id"], []))
+        pool += MISHAPS.get(None, [])
+        return random.choice(pool)
+
+    def _check_levelup(self, agent):
+        """Check and apply level up."""
+        needed = agent["level"] * 50
+        if agent["exp"] >= needed:
+            agent["exp"] = 0
+            agent["level"] += 1
+            # Stat growth on level up
+            strength_stat = AI_STRENGTH.get(agent["id"])
+            for stat in agent["stats"]:
+                growth = random.randint(0, 1)
+                if stat == strength_stat:
+                    growth += 1
+                agent["stats"][stat] = min(10, agent["stats"][stat] + growth)
+            self.turn_log.append("")
+            self.turn_log.append(f"★ Lv.{agent['level']}にアップ！")
 
     def _week_to_date(self, w):
         yr = (w - 1) // 48 + 1
@@ -193,7 +438,7 @@ class Game:
         text_centered(130, "AI副業経営シミュレーション", C_WHITE, self.font_s)
         if pyxel.frame_count % 60 < 40:
             text_centered(230, "タップしてスタート", C_GRAY, self.font_s)
-        text_centered(300, "v0.1 - Phase 1", C_DGRAY, self.font_s)
+        text_centered(300, "v0.2 - Phase 2", C_DGRAY, self.font_s)
 
     def draw_select(self):
         pyxel.cls(C_BLACK)
@@ -258,6 +503,12 @@ class Game:
             bob = -2 if (pyxel.frame_count // 20) % 2 else 0
             self._draw_avatar_small(a["id"], 108, 80 + bob, a["color"])
 
+        # Current job indicator
+        if self.current_job:
+            pyxel.text(8, 148, f"受注中: {self.current_job['name']}", C_GREEN, self.font_s)
+        else:
+            pyxel.text(8, 148, "案件未選択", C_DGRAY, self.font_s)
+
         # Naviko message area
         pyxel.rect(0, 160, WIDTH, 48, C_BLACK)
         pyxel.rectb(0, 160, WIDTH, 48, C_DGRAY)
@@ -275,21 +526,40 @@ class Game:
 
     def draw_result(self):
         pyxel.cls(C_BLACK)
-        text_centered(20, "今週の結果", C_YELLOW, self.font)
 
-        y = 70
+        if self.mishap_event:
+            text_centered(10, "!! やらかし発生 !!", C_RED, self.font)
+        else:
+            text_centered(10, "今週の結果", C_YELLOW, self.font)
+
+        y = 50
         for line in self.turn_log:
             if line == "":
-                y += 8
+                y += 6
                 continue
-            if line.startswith("+"):
+            if "やらかし" in line:
+                col = C_RED
+            elif line.startswith("+") or "大成功" in line:
                 col = C_GREEN
             elif line.startswith("★"):
                 col = C_YELLOW
+            elif "微妙" in line or "減額" in line or "ゼロ" in line:
+                col = C_ORANGE
+            elif "⚠" in line:
+                col = C_ORANGE
             else:
                 col = C_WHITE
             text_centered(y, line, col, self.font_s)
-            y += 22
+            y += 18
+
+        # Show mishap detail
+        if self.mishap_event:
+            y += 4
+            pyxel.rect(16, y, 208, 60, C_NAVY)
+            pyxel.rectb(16, y, 208, 60, C_RED)
+            for i, line in enumerate(self.mishap_event["text"].split("\n")):
+                pyxel.text(24, y + 8 + i * 14, line, C_PINK, self.font_s)
+            y += 66
 
         self.buttons["cont"].draw(self.font, C_DGRAY, C_WHITE, C_GRAY)
 
@@ -316,45 +586,106 @@ class Game:
             pyxel.text(180, sy, str(val), C_WHITE, self.font_s)
             sy += 20
 
-        text_centered(sy + 10, f"状態: {a['status']}", C_WHITE, self.font_s)
+        # Fatigue
+        pyxel.text(24, sy, "疲労", C_GRAY, self.font_s)
+        pyxel.rect(72, sy + 1, 100, 10, C_DGRAY)
+        fat_w = min(a["fatigue"] * 10, 100)
+        fat_col = C_RED if a["fatigue"] >= 6 else C_ORANGE if a["fatigue"] >= 3 else C_GREEN
+        pyxel.rect(72, sy + 1, fat_w, 10, fat_col)
+        sy += 20
+
+        text_centered(sy + 6, f"状態: {a['status']}", C_WHITE, self.font_s)
         self.buttons["back"].draw(self.font, C_DGRAY, C_WHITE, C_GRAY)
 
     def draw_job_board(self):
         pyxel.cls(C_BLACK)
         text_centered(10, "案件ボード", C_YELLOW, self.font)
+        pyxel.text(8, 30, "タップで選択→もう一度タップで受注", C_GRAY, self.font_s)
 
-        jobs = [
-            ("データ入力", 100, "★"),
-            ("アンケート代筆", 120, "★"),
-            ("リサーチ代行", 150, "★☆"),
-        ]
-        for i, (name, pay, diff) in enumerate(jobs):
-            y = 50 + i * 60
-            draw_panel(20, y, 200, 48, C_NAVY, C_GRAY)
-            pyxel.text(30, y + 8, name, C_WHITE, self.font_s)
-            pyxel.text(30, y + 26, f"報酬:{pay}G  難度:{diff}", C_GRAY, self.font_s)
+        if not self.available_jobs:
+            text_centered(140, "案件がありません", C_DGRAY, self.font_s)
+        else:
+            visible_start = self.job_scroll
+            visible_end = min(visible_start + 4, len(self.available_jobs))
+            for vi, ji in enumerate(range(visible_start, visible_end)):
+                job = self.available_jobs[ji]
+                y = 44 + vi * 54
+                is_selected = (self.selected_job == ji)
+                bg_col = C_DGREEN if is_selected else C_NAVY
+                border_col = C_GREEN if is_selected else C_GRAY
 
-        text_centered(240, "※フェーズ2で実装", C_DGRAY, self.font_s)
-        self.buttons["back"].draw(self.font, C_DGRAY, C_WHITE, C_GRAY)
+                draw_panel(16, y, 208, 48, bg_col, border_col)
+                pyxel.text(24, y + 6, job["name"], C_WHITE, self.font_s)
+                pyxel.text(24, y + 22, f"報酬:{job['pay']}G  難度:{job['diff']}", C_GRAY, self.font_s)
+
+                # Show stat requirement
+                if job.get("stat"):
+                    req_text = f"要:{job['stat']}{job['threshold']}"
+                    pyxel.text(150, y + 6, req_text, C_SKYBLUE, self.font_s)
+
+                # Show if currently assigned
+                if self.current_job and self.current_job["name"] == job["name"]:
+                    pyxel.text(150, y + 32, "受注中", C_GREEN, self.font_s)
+
+        # Scroll indicators
+        if self.job_scroll > 0:
+            text_centered(38, "▲", C_GRAY, self.font_s)
+        if self.job_scroll + 4 < len(self.available_jobs):
+            text_centered(264, "▼", C_GRAY, self.font_s)
+
+        self.buttons["back"].draw(self.font_s, C_DGRAY, C_WHITE, C_GRAY)
+
+    def draw_equip_shop(self):
+        pyxel.cls(C_BLACK)
+        text_centered(10, "設備ショップ", C_YELLOW, self.font)
+        pyxel.text(8, 28, f"所持金: {self.coins}G", C_GREEN, self.font_s)
+
+        visible = self._visible_equips()
+        if not visible:
+            text_centered(140, "設備がありません", C_DGRAY, self.font_s)
+        else:
+            for i, eq in enumerate(visible):
+                y = 44 + i * 54
+                owned = eq["name"] in self.owned_equip
+                can_buy = self.coins >= eq["cost"] and not owned
+
+                if owned:
+                    bg_col = C_DGRAY
+                    border_col = C_GRAY
+                elif can_buy:
+                    bg_col = C_NAVY
+                    border_col = C_GREEN
+                else:
+                    bg_col = C_NAVY
+                    border_col = C_DGRAY
+
+                draw_panel(16, y, 208, 48, bg_col, border_col)
+                pyxel.text(24, y + 6, eq["name"], C_WHITE, self.font_s)
+                pyxel.text(24, y + 22, eq["desc"], C_GRAY, self.font_s)
+
+                if owned:
+                    pyxel.text(160, y + 6, "購入済", C_GRAY, self.font_s)
+                else:
+                    cost_col = C_GREEN if can_buy else C_RED
+                    pyxel.text(150, y + 6, f"{eq['cost']}G", cost_col, self.font_s)
+
+        self.buttons["back"].draw(self.font_s, C_DGRAY, C_WHITE, C_GRAY)
 
     # ── Avatar drawing ──
 
     def _draw_avatar_small(self, agent_id, x, y, col):
         """Draw a small ~24x24 avatar at top-left (x, y)."""
         if agent_id == "poem":
-            # Round shape + beret
             pyxel.circ(x + 12, y + 14, 12, col)
             pyxel.pset(x + 8, y + 11, C_WHITE)
             pyxel.pset(x + 16, y + 11, C_WHITE)
             pyxel.rect(x + 4, y, 16, 6, col)
         elif agent_id == "bugmaru":
-            # Square + glasses
             pyxel.rect(x, y + 2, 24, 22, col)
             pyxel.rectb(x + 3, y + 9, 8, 6, C_WHITE)
             pyxel.rectb(x + 13, y + 9, 8, 6, C_WHITE)
             pyxel.line(x + 11, y + 11, x + 13, y + 11, C_WHITE)
         else:
-            # Triangle (sharp/business)
             pyxel.tri(x + 12, y, x, y + 24, x + 24, y + 24, col)
             pyxel.pset(x + 9, y + 12, C_WHITE)
             pyxel.pset(x + 15, y + 12, C_WHITE)

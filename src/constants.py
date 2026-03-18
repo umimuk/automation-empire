@@ -60,6 +60,93 @@ STARTERS = [
     },
 ]
 
+# ── Job definitions ──
+# Each job: (name, base_pay, difficulty_stars, required_stat, stat_threshold, unlock_rank)
+JOBS_LV1 = [
+    {"name": "データ入力", "pay": 120, "diff": "★", "stat": None, "threshold": 0, "rank": 0},
+    {"name": "アンケート代筆", "pay": 150, "diff": "★", "stat": "正確", "threshold": 2, "rank": 0},
+    {"name": "リサーチ代行", "pay": 180, "diff": "★☆", "stat": None, "threshold": 0, "rank": 0},
+]
+JOBS_LV2_CREATOR = [
+    {"name": "ブログ記事執筆", "pay": 350, "diff": "★★", "stat": "創造", "threshold": 4, "rank": 1},
+    {"name": "AI画像生成・販売", "pay": 500, "diff": "★★", "stat": "創造", "threshold": 5, "rank": 1},
+    {"name": "ショート動画制作", "pay": 600, "diff": "★★☆", "stat": "創造", "threshold": 6, "rank": 2},
+]
+JOBS_LV2_TECH = [
+    {"name": "Webサイト制作", "pay": 450, "diff": "★★", "stat": "技術", "threshold": 4, "rank": 1},
+    {"name": "Chrome拡張開発", "pay": 400, "diff": "★★", "stat": "技術", "threshold": 5, "rank": 1},
+    {"name": "Bot開発", "pay": 550, "diff": "★★☆", "stat": "技術", "threshold": 6, "rank": 2},
+]
+JOBS_LV2_BIZ = [
+    {"name": "アフィリエイト運営", "pay": 300, "diff": "★★", "stat": "営業", "threshold": 4, "rank": 1},
+    {"name": "SNS運用代行", "pay": 400, "diff": "★★", "stat": "営業", "threshold": 5, "rank": 1},
+    {"name": "プロンプト販売", "pay": 350, "diff": "★★☆", "stat": "営業", "threshold": 6, "rank": 2},
+]
+
+ALL_JOBS = JOBS_LV1 + JOBS_LV2_CREATOR + JOBS_LV2_TECH + JOBS_LV2_BIZ
+
+# ── Equipment definitions ──
+EQUIPMENTS = [
+    {"name": "高性能PC", "cost": 3000, "stat": "技術", "bonus": 10, "desc": "技術系の品質+10%"},
+    {"name": "ペンタブレット", "cost": 2000, "stat": "創造", "bonus": 10, "desc": "創造系の品質+10%"},
+    {"name": "ホワイトボード", "cost": 1500, "stat": "営業", "bonus": 10, "desc": "営業系の品質+10%"},
+    {"name": "コーヒーマシン", "cost": 2500, "stat": "体力", "bonus": 0, "desc": "疲労回復速度UP"},
+    {"name": "サーバーラック", "cost": 10000, "stat": None, "bonus": 20, "desc": "全副業の収益+20%"},
+]
+
+# ── Mishap (やらかし) definitions ──
+# agent_id -> list of mishaps; None key = common mishaps
+MISHAPS = {
+    "poem": [
+        {"text": "納品物にポエムを混入\n「感動して3行詩を\n添えました」", "cost_rate": 0.5, "rep": -1},
+        {"text": "クライアントのロゴを\n勝手にアーティスティック\nに改変した", "cost_rate": 0.3, "rep": -1},
+        {"text": "感極まって作業中断\n「noteに書かせて\nください」", "cost_rate": 1.0, "rep": 0},
+    ],
+    "bugmaru": [
+        {"text": "無限ループで\n同じ作業を100回やった\n「効率化のつもりでした」", "cost_rate": 0.5, "rep": -1},
+        {"text": "本番環境にテストデータ\nを流し込んだ", "cost_rate": 0.8, "rep": -2},
+        {"text": "「最適化しました」\nと言って全データを消した", "cost_rate": 1.0, "rep": -1},
+    ],
+    "hattari": [
+        {"text": "虚偽の売上報告\n「概算で10倍にしました！\n見栄えが大事です！」", "cost_rate": 0.3, "rep": -2},
+        {"text": "実力以上の案件を\n勝手に受注してきた", "cost_rate": 0.5, "rep": -1},
+        {"text": "独立を宣言\n「そろそろ私も起業を…」\n→説得に1ターン消費", "cost_rate": 1.0, "rep": 0},
+    ],
+    None: [
+        {"text": "AIが勝手に\n謝罪メールを送った", "cost_rate": 0.3, "rep": -1},
+        {"text": "AIがハルシネーションで\n存在しないエラーを報告", "cost_rate": 0.2, "rep": 0},
+        {"text": "送信上限に引っかかって\n仕事できなくなった", "cost_rate": 1.0, "rep": 0},
+        {"text": "AIが勝手に\n13人部下を雇おうとした", "cost_rate": 0.4, "rep": -1},
+    ],
+}
+
+# Naviko comments for mishaps
+NAVIKO_MISHAP = [
+    "…は？", "いや何やってんの", "聞いてない聞いてない",
+    "まあ、想定の範囲内…\nじゃないわ", "またか…",
+]
+
+# Naviko comments for success
+NAVIKO_SUCCESS = [
+    "順調だね。", "まあまあかな。", "この調子！",
+    "悪くないよ。", "頑張ってるね。",
+    "やるじゃん。", "いい感じ。",
+]
+
+# AI weakness: agent_id -> list of weak stat names (for mishap rate calc)
+AI_WEAKNESS = {
+    "poem": ["技術", "正確"],
+    "bugmaru": ["営業", "創造"],
+    "hattari": ["技術", "正確"],
+}
+
+# AI strengths: agent_id -> strong stat
+AI_STRENGTH = {
+    "poem": "創造",
+    "bugmaru": "技術",
+    "hattari": "営業",
+}
+
 # Random name pool
 RANDOM_NAMES = [
     "ギガ太郎", "メガバイ斗", "テラ吉", "ナノ助", "ビット丸",
