@@ -683,7 +683,7 @@ class Game:
         pyxel.cls(C_BLACK)
 
         # Header
-        text_centered(6, "WHAT WILL YOU DO?", C_RED, self.font_s)
+        text_centered(6, "どうする？", C_RED, self.font)
         pyxel.line(0, 20, WIDTH, 20, C_DGRAY)
 
         # Mishap text (up to 3 lines)
@@ -697,7 +697,7 @@ class Game:
         pyxel.rect(0, 76, WIDTH, 44, C_NAVY)
         pyxel.rectb(0, 76, WIDTH, 44, C_DGRAY)
         pyxel.circ(16, 96, 8, C_LAVENDER)
-        pyxel.text(10, 93, "Nav", C_WHITE, self.font_s)
+        pyxel.text(10, 93, "ナ", C_WHITE, self.font_s)
         msg_lines = self.naviko_msg.split("\n") if self.naviko_msg else ["..."]
         pyxel.text(32, 82, msg_lines[0], C_WHITE, self.font_s)
         if len(msg_lines) > 1:
