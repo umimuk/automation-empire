@@ -287,7 +287,6 @@ class Game:
             self.turn_log = [
                 f"{yr}年目 {mo}月 第{wk}週",
                 "",
-                f"{a['name']}は",
                 random.choice(idle_msgs),
                 "",
                 "収益: 0G",
