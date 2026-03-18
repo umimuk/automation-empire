@@ -60,6 +60,14 @@ AI_APTITUDE = {
     AI_HATTARI: ROUTE_BUSINESS,
 }
 
+# 御三家の苦手ルートマッピング
+# ai_type -> 苦手ルート
+AI_WEAKNESS = {
+    AI_POEM: ROUTE_BUSINESS,
+    AI_BUGMARU: ROUTE_BUSINESS,
+    AI_HATTARI: ROUTE_CREATOR,
+}
+
 # 適性ボーナス/ペナルティ
 APTITUDE_BONUS = 1.5       # 適性ルートの成長倍率
 APTITUDE_NORMAL = 1.0      # 普通

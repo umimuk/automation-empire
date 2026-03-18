@@ -115,6 +115,16 @@ for _ in range(1000):
 print(f"  Incidents mismatch route: {triggered2} (should be higher)")
 assert triggered2 > triggered, "Mismatch route should have more incidents"
 
+# Bugmaru苦手ルートテスト（Tech適性 → Business苦手）
+bugmaru = AIAgent(AI_BUGMARU)
+bugmaru.set_route(ROUTE_BUSINESS)
+assert bugmaru.growth_multiplier == 0.7, f"Bugmaru weakness should be 0.7, got {bugmaru.growth_multiplier}"
+assert bugmaru.incident_multiplier == 2.0, f"Bugmaru incident penalty should be 2.0, got {bugmaru.incident_multiplier}"
+bugmaru_normal = AIAgent(AI_BUGMARU)
+bugmaru_normal.set_route(ROUTE_CREATOR)
+assert bugmaru_normal.growth_multiplier == 1.0, f"Bugmaru Creator should be normal 1.0, got {bugmaru_normal.growth_multiplier}"
+print(f"  Bugmaru weakness test: Business=0.7x/2.0x, Creator=1.0x OK")
+
 # 選択肢適用テスト
 test_event = INCIDENTS_COMMON[0]
 result = ie.apply_choice(test_event, 0)

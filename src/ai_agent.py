@@ -4,7 +4,7 @@ from src.constants import (
     AI_NAMES_DEFAULT, AI_TYPES, AI_COLORS,
     AI_BASE_EFFICIENCY, AI_GROWTH_RATE,
     AI_EXP_PER_CLICK, AI_EXP_CURVE,
-    AI_APTITUDE, ROUTE_NONE,
+    AI_APTITUDE, AI_WEAKNESS, ROUTE_NONE,
     APTITUDE_BONUS, APTITUDE_NORMAL, APTITUDE_PENALTY,
     APTITUDE_INCIDENT_BONUS, APTITUDE_INCIDENT_PENALTY,
 )
@@ -38,10 +38,9 @@ class AIAgent:
             return APTITUDE_NORMAL
         if self.route == self.aptitude_route:
             return APTITUDE_BONUS
-        # 苦手判定（適性と対角のルート）
-        # Creator↔Tech↔Business で隣は普通、対角は苦手
-        diff = abs(self.route - self.aptitude_route)
-        if diff == 2:
+        # 苦手判定（明示的な苦手ルート定義）
+        weakness = AI_WEAKNESS.get(self.ai_type)
+        if weakness is not None and self.route == weakness:
             return APTITUDE_PENALTY
         return APTITUDE_NORMAL
 
@@ -52,8 +51,8 @@ class AIAgent:
             return 1.0
         if self.route == self.aptitude_route:
             return APTITUDE_INCIDENT_BONUS
-        diff = abs(self.route - self.aptitude_route)
-        if diff == 2:
+        weakness = AI_WEAKNESS.get(self.ai_type)
+        if weakness is not None and self.route == weakness:
             return APTITUDE_INCIDENT_PENALTY
         return 1.0
 
