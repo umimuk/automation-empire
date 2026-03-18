@@ -1,16 +1,19 @@
-"""Main game logic for 自動化帝国 (Phase 2)."""
+"""Main game logic for 自動化帝国 (Phase 4)."""
 
 import pyxel
 import random
 
 from src.constants import (
     WIDTH, HEIGHT, FONT_MAIN, FONT_SMALL,
-    C_BLACK, C_NAVY, C_DGREEN, C_BROWN, C_DGRAY, C_GRAY, C_WHITE,
-    C_RED, C_YELLOW, C_GREEN, C_SKYBLUE, C_LAVENDER, C_PINK, C_ORANGE, C_PEACH,
+    C_BLACK, C_NAVY, C_PURPLE, C_DGREEN, C_BROWN, C_DGRAY, C_GRAY, C_WHITE,
+    C_RED, C_ORANGE, C_YELLOW, C_GREEN, C_SKYBLUE, C_LAVENDER, C_PINK, C_PEACH,
     REP_RANKS, STARTERS, RANDOM_NAMES,
     ALL_JOBS, EQUIPMENTS, MISHAPS, NAVIKO_MISHAP, NAVIKO_SUCCESS,
     AI_WEAKNESS, AI_STRENGTH,
     NAVIKO_OVERLOAD, NAVIKO_DEFRAG, NAVIKO_IDLE,
+    OFFICE_LEVELS, TAX_EVENT_CHOICES, TAX_AGENT_FAILS,
+    NAVIKO_MONTHLY_GOOD, NAVIKO_MONTHLY_BAD, NAVIKO_MONTHLY_GREAT,
+    NAVIKO_RANKUP, NAVIKO_TAX,
 )
 from src.ui import Button, text_centered, draw_panel
 
@@ -34,6 +37,7 @@ class Game:
         self.rep_rank = 0  # index into REP_RANKS
         self.agents = []
         self.owned_equip = []  # list of equipment names
+        self.office_level = 0  # Phase 4: index into OFFICE_LEVELS
 
         # Job state
         self.available_jobs = []  # jobs shown on board this turn
@@ -51,6 +55,22 @@ class Game:
         self.naviko_msg = ""
         self.job_scroll = 0  # scroll offset for job board
         self.equip_scroll = 0  # scroll offset for equip shop
+
+        # Phase 4: Monthly tracking
+        self.month_earnings = 0
+        self.month_mishaps = 0
+        self.year_earnings = 0
+
+        # Phase 4: Event queue
+        self.pending_scenes = []
+        self.prev_rep_rank = 0
+        self.rankup_from = 0
+
+        # Phase 4: Monthly report snapshot
+        self.report_data = {}
+
+        # Phase 4: Tax event
+        self.tax_year_income = 0
 
         self._setup_scene()
         pyxel.run(self.update, self.draw)
@@ -92,6 +112,16 @@ class Game:
         elif s == "equip_shop":
             self.equip_scroll = 0
             self.buttons["back"] = Button(8, 276, 100, 36, "戻る")
+            # Phase 4: Office upgrade button
+            if self.office_level < len(OFFICE_LEVELS) - 1:
+                self.buttons["office_up"] = Button(16, 44, 208, 48, "")
+        elif s == "monthly_report":
+            self.buttons["cont"] = Button(40, 272, 160, 36, "次へ")
+        elif s == "rankup":
+            self.buttons["cont"] = Button(40, 272, 160, 36, "次へ")
+        elif s == "tax_event":
+            for i in range(4):
+                self.buttons[f"tax{i}"] = Button(12, 136 + i * 44, 216, 40, "")
 
     def _refresh_job_board(self):
         """Generate available jobs based on reputation rank."""
@@ -104,6 +134,52 @@ class Game:
         # Create job slot buttons (max 4 visible)
         for i in range(min(len(self.available_jobs), 4)):
             self.buttons[f"job{i}"] = Button(16, 44 + i * 54, 208, 48, "")
+
+    # ── Scene transition helper ──
+
+    def _next_scene(self):
+        """Go to next pending event scene, or back to office."""
+        if self.pending_scenes:
+            scene = self.pending_scenes.pop(0)
+            self.change_scene(scene)
+        else:
+            self.change_scene("office")
+
+    # ── Post-turn event check ──
+
+    def _check_post_turn_events(self):
+        """Queue events after a turn (rank up, monthly report, tax)."""
+        self.pending_scenes = []
+
+        # Rank up check
+        if self.rep_rank > self.prev_rep_rank:
+            self.rankup_from = self.prev_rep_rank
+            self.pending_scenes.append("rankup")
+        self.prev_rep_rank = self.rep_rank
+
+        # Monthly report (every 4 weeks)
+        prev_week = self.week - 1  # the week that just completed
+        if prev_week > 0 and prev_week % 4 == 0:
+            yr, mo, _ = self._week_to_date(prev_week)
+            self.report_data = {
+                "month": mo,
+                "year": yr,
+                "earnings": self.month_earnings,
+                "mishaps": self.month_mishaps,
+                "rank": REP_RANKS[self.rep_rank],
+                "level": self.agents[0]["level"] if self.agents else 1,
+            }
+            self.pending_scenes.append("monthly_report")
+            # Reset monthly tracking
+            self.month_earnings = 0
+            self.month_mishaps = 0
+
+        # Tax event (2月第1週 of year 2+)
+        next_yr, next_mo, next_wk = self._week_to_date(self.week)
+        if next_yr >= 2 and next_mo == 2 and next_wk == 1:
+            self.tax_year_income = self.year_earnings
+            self.year_earnings = 0
+            self.pending_scenes.append("tax_event")
 
     # ── Update dispatch ──
 
@@ -144,6 +220,7 @@ class Game:
             self.week = 1
             self.coins = 1000
             self.rep_rank = 0
+            self.prev_rep_rank = 0
             self.current_job = None
             self.naviko_msg = (
                 f"{self.naming_name}を雇った！\n"
@@ -170,11 +247,11 @@ class Game:
             if self.mishap_event and self.mishap_event.get("choices"):
                 self.change_scene("mishap")
             else:
-                self.change_scene("office")
+                self._next_scene()
 
     def update_mishap(self):
         if not self.mishap_event:
-            self.change_scene("office")
+            self._next_scene()
             return
         choices = self.mishap_event.get("choices", [])
         for i, choice in enumerate(choices):
@@ -182,7 +259,7 @@ class Game:
             if key in self.buttons and self.buttons[key].clicked():
                 self._apply_choice(choice)
                 self.mishap_event = None
-                self.change_scene("office")
+                self._next_scene()
                 return
 
     def _apply_choice(self, choice):
@@ -218,6 +295,56 @@ class Game:
         else:
             cost_text = "（±0G）"
         self.naviko_msg = f"{result_text}\n{cost_text}"
+
+    # Phase 4: New scene updates
+
+    def update_monthly_report(self):
+        if self.buttons["cont"].clicked():
+            self._next_scene()
+
+    def update_rankup(self):
+        if self.buttons["cont"].clicked():
+            self._next_scene()
+
+    def update_tax_event(self):
+        for i, tc in enumerate(TAX_EVENT_CHOICES):
+            key = f"tax{i}"
+            if key in self.buttons and self.buttons[key].clicked():
+                self._apply_tax(tc)
+                self._next_scene()
+                return
+
+    def _apply_tax(self, choice):
+        """Apply tax event choice."""
+        if choice.get("gamble", False):
+            if random.random() < 0.5:
+                # AI did well
+                tax_rate = choice["tax_rate"]
+                rep = choice.get("rep", 0)
+                result_text = choice.get("result_text", "")
+            else:
+                # AI messed up
+                tax_rate = choice.get("gamble_fail_tax_rate", 0.25)
+                rep = choice.get("gamble_fail_rep", 0)
+                # Use agent-specific fail text if available
+                agent_id = self.agents[0]["id"] if self.agents else None
+                result_text = TAX_AGENT_FAILS.get(agent_id, choice.get("gamble_fail_text", ""))
+        else:
+            tax_rate = choice["tax_rate"]
+            rep = choice.get("rep", 0)
+            result_text = choice.get("result_text", "")
+
+        tax_amount = int(self.tax_year_income * tax_rate)
+        self.coins = max(0, self.coins - tax_amount)
+        self.rep_rank = max(0, min(len(REP_RANKS) - 1, self.rep_rank + rep))
+
+        # Fatigue from doing it yourself
+        fatigue = choice.get("fatigue", 0)
+        if self.agents and fatigue != 0:
+            a = self.agents[0]
+            a["fatigue"] = max(0, min(10, a["fatigue"] + fatigue))
+
+        self.naviko_msg = f"{result_text}\n（税金: -{tax_amount}G）"
 
     def update_ai_detail(self):
         if self.buttons["defrag"].clicked():
@@ -263,6 +390,20 @@ class Game:
         if self.buttons["back"].clicked():
             self.change_scene("office")
             return
+        # Phase 4: Office upgrade
+        if "office_up" in self.buttons and self.buttons["office_up"].clicked():
+            if self.office_level < len(OFFICE_LEVELS) - 1:
+                next_lv = OFFICE_LEVELS[self.office_level + 1]
+                if self.coins >= next_lv["cost"]:
+                    self.coins -= next_lv["cost"]
+                    self.office_level += 1
+                    cur = OFFICE_LEVELS[self.office_level]
+                    self.naviko_msg = (
+                        f"事務所を拡張！\n"
+                        f"{cur['name']}に！ {cur['desc']}"
+                    )
+                    self.change_scene("office")
+            return
         # Scroll handling
         if "scroll_up" in self.buttons and self.buttons["scroll_up"].clicked():
             if self.equip_scroll > 0:
@@ -289,20 +430,27 @@ class Game:
 
     def _visible_equips(self):
         """Get visible equipment list and create buttons."""
+        has_office_btn = self.office_level < len(OFFICE_LEVELS) - 1
+        eq_y_start = 98 if has_office_btn else 44
+        max_visible = 3 if has_office_btn else 4
+
         visible = []
         for i, eq in enumerate(EQUIPMENTS):
             if i < self.equip_scroll:
                 continue
-            if len(visible) >= 4:
+            if len(visible) >= max_visible:
                 break
             visible.append(eq)
-        # Recreate buttons (keep back)
+        # Recreate buttons (keep back + office_up)
         back_btn = self.buttons.get("back")
+        office_btn = self.buttons.get("office_up")
         self.buttons = {}
         if back_btn:
             self.buttons["back"] = back_btn
+        if office_btn:
+            self.buttons["office_up"] = office_btn
         for i, eq in enumerate(visible):
-            self.buttons[f"eq{i}"] = Button(16, 44 + i * 54, 208, 48, "")
+            self.buttons[f"eq{i}"] = Button(16, eq_y_start + i * 54, 208, 48, "")
         return visible
 
     # ── Turn logic ──
@@ -311,6 +459,11 @@ class Game:
         """Defrag: skip 1 turn, reset load to 0."""
         a = self.agents[0]
         yr, mo, wk = self._week_to_date(self.week)
+
+        # Phase 4: Office fatigue bonus
+        extra = 0
+        if OFFICE_LEVELS[self.office_level].get("desc", "").find("負荷回復") >= 0:
+            extra = 1  # bonus recovery text in defrag
 
         a["fatigue"] = 0
         a["status"] = "デフラグ完了"
@@ -329,11 +482,13 @@ class Game:
         self.naviko_msg = random.choice(NAVIKO_DEFRAG)
         self.week += 1
         self.mishap_event = None
+        self._check_post_turn_events()
         self.change_scene("result")
 
     def _do_turn(self):
         a = self.agents[0]
         yr, mo, wk = self._week_to_date(self.week)
+        self.prev_rep_rank = self.rep_rank  # Track for rank up check
 
         job = self.current_job
         if job is None:
@@ -362,6 +517,7 @@ class Game:
             self.naviko_msg = random.choice(NAVIKO_IDLE)
             self.week += 1
             self.mishap_event = None
+            self._check_post_turn_events()
             self.change_scene("result")
             return
 
@@ -389,6 +545,11 @@ class Game:
         if is_strong:
             earned = int(earned * 1.3)
 
+        # Phase 4: Office bonus
+        office_bonus = OFFICE_LEVELS[self.office_level]["bonus"]
+        if office_bonus > 0:
+            earned = int(earned * (1.0 + office_bonus / 100.0))
+
         # Check for mishap (やらかし)
         mishap_chance = self._calc_mishap_chance(a, job)
         mishap = None
@@ -407,6 +568,11 @@ class Game:
             self.rep_rank = max(0, min(len(REP_RANKS) - 1, self.rep_rank + rep_change))
 
             self.coins += earned
+            # Phase 4: Track earnings
+            self.month_earnings += earned
+            self.year_earnings += earned
+            self.month_mishaps += 1
+
             a["exp"] += 5  # less exp on mishap
             fat_add = 1 if self._has_equip("fatigue_reduce") else 2
             a["fatigue"] = min(10, a["fatigue"] + fat_add)
@@ -431,6 +597,7 @@ class Game:
 
             self.week += 1
             self._check_levelup(a)
+            self._check_post_turn_events()
             self.change_scene("result")
             return
 
@@ -446,10 +613,18 @@ class Game:
             earned = int(earned * 0.6)
 
         self.coins += earned
+        # Phase 4: Track earnings
+        self.month_earnings += earned
+        self.year_earnings += earned
+
         a["exp"] += 15 if is_strong else 10
         # Memory expansion: 50% chance to skip fatigue gain
-        if self._has_equip("fatigue_reduce") and random.random() < 0.5:
+        has_fatigue_equip = self._has_equip("fatigue_reduce")
+        has_office_fatigue = "負荷回復" in OFFICE_LEVELS[self.office_level].get("desc", "")
+        if has_fatigue_equip and random.random() < 0.5:
             pass  # no fatigue gain this turn
+        elif has_office_fatigue and random.random() < 0.3:
+            pass  # office fatigue bonus
         else:
             a["fatigue"] = min(10, a["fatigue"] + 1)
         a["status"] = "作業完了"
@@ -475,13 +650,6 @@ class Game:
         # Level up check
         self._check_levelup(a)
 
-        # Monthly report
-        if self.week % 4 == 0:
-            self.naviko_msg = (
-                f"{mo}月終了！\n"
-                f"所持: {self.coins}G  評判:{REP_RANKS[self.rep_rank]}"
-            )
-
         # Overload warning
         if a["fatigue"] >= 6:
             self.turn_log.append("")
@@ -490,6 +658,7 @@ class Game:
 
         self.week += 1
         self.mishap_event = None
+        self._check_post_turn_events()
         self.change_scene("result")
 
     def _calc_equip_bonus(self, stat_name):
@@ -572,7 +741,7 @@ class Game:
         text_centered(130, "AI副業経営シミュレーション", C_WHITE, self.font_s)
         if pyxel.frame_count % 60 < 40:
             text_centered(230, "タップしてスタート", C_GRAY, self.font_s)
-        text_centered(300, "v0.2 - Phase 2", C_DGRAY, self.font_s)
+        text_centered(300, "v0.4 - Phase 4", C_DGRAY, self.font_s)
 
     def draw_select(self):
         pyxel.cls(C_BLACK)
@@ -623,13 +792,42 @@ class Game:
 
         # Office area
         pyxel.rect(0, 20, WIDTH, 140, C_NAVY)
+
+        # Phase 4: Office visuals based on level
+        if self.office_level >= 4:
+            # AI帝国タワー - gold accent
+            pyxel.rect(0, 20, WIDTH, 4, C_YELLOW)
+            pyxel.rect(0, 142, WIDTH, 3, C_YELLOW)
+        elif self.office_level >= 3:
+            # ビル1棟
+            pyxel.rect(0, 142, WIDTH, 3, C_GREEN)
+        elif self.office_level >= 2:
+            # フロアオフィス
+            pyxel.rect(0, 142, WIDTH, 3, C_SKYBLUE)
+
         # Floor line
         pyxel.line(0, 145, WIDTH, 145, C_DGRAY)
         # Desk
-        pyxel.rect(60, 125, 120, 16, C_BROWN)
+        desk_col = C_BROWN if self.office_level < 3 else C_ORANGE
+        pyxel.rect(60, 125, 120, 16, desk_col)
         # Monitor
         pyxel.rect(98, 105, 44, 20, C_DGRAY)
-        pyxel.rect(102, 108, 36, 14, C_SKYBLUE)
+        monitor_col = C_SKYBLUE if self.office_level < 4 else C_GREEN
+        pyxel.rect(102, 108, 36, 14, monitor_col)
+
+        # Phase 4: Extra furniture for higher office levels
+        if self.office_level >= 2:
+            # Bookshelf
+            pyxel.rect(8, 100, 24, 40, C_BROWN)
+            pyxel.line(8, 110, 31, 110, C_DGRAY)
+            pyxel.line(8, 120, 31, 120, C_DGRAY)
+            pyxel.line(8, 130, 31, 130, C_DGRAY)
+        if self.office_level >= 3:
+            # Server rack
+            pyxel.rect(208, 100, 24, 40, C_DGRAY)
+            pyxel.rect(212, 106, 16, 4, C_GREEN)
+            pyxel.rect(212, 116, 16, 4, C_SKYBLUE)
+            pyxel.rect(212, 126, 16, 4, C_GREEN)
 
         # Agent at desk
         if self.agents:
@@ -642,6 +840,10 @@ class Game:
             pyxel.text(8, 148, f"受注中: {self.current_job['name']}", C_GREEN, self.font_s)
         else:
             pyxel.text(8, 148, "案件未選択", C_DGRAY, self.font_s)
+
+        # Phase 4: Office name
+        office_name = OFFICE_LEVELS[self.office_level]["name"]
+        pyxel.text(140, 148, office_name, C_GRAY, self.font_s)
 
         # Naviko message area
         pyxel.rect(0, 160, WIDTH, 48, C_BLACK)
@@ -739,6 +941,144 @@ class Game:
                         pyxel.text(btn.x + 8, btn.y + 6, lines[0], C_WHITE, self.font_s)
                         pyxel.text(btn.x + 8, btn.y + 20, lines[1], C_WHITE, self.font_s)
 
+    # Phase 4: Monthly report screen
+
+    def draw_monthly_report(self):
+        pyxel.cls(C_BLACK)
+
+        d = self.report_data
+        mo = d.get("month", 1)
+        yr = d.get("year", 1)
+
+        text_centered(10, f"{yr}年目 {mo}月のレポート", C_YELLOW, self.font)
+        pyxel.line(0, 28, WIDTH, 28, C_DGRAY)
+
+        # Stats
+        y = 50
+        items = [
+            ("収益", f"{d.get('earnings', 0)}G", C_GREEN),
+            ("やらかし", f"{d.get('mishaps', 0)}回", C_PINK if d.get('mishaps', 0) > 0 else C_WHITE),
+            ("評判", d.get("rank", "E"), C_YELLOW),
+            ("AI Lv", str(d.get("level", 1)), C_SKYBLUE),
+            ("所持金", f"{self.coins}G", C_GREEN),
+        ]
+
+        for label, value, col in items:
+            pyxel.text(40, y, label, C_GRAY, self.font_s)
+            pyxel.text(140, y, value, col, self.font_s)
+            y += 24
+
+        # Naviko comment
+        pyxel.rect(0, 190, WIDTH, 50, C_NAVY)
+        pyxel.rectb(0, 190, WIDTH, 50, C_DGRAY)
+        pyxel.circ(16, 212, 8, C_LAVENDER)
+        pyxel.text(10, 209, "ナ", C_WHITE, self.font_s)
+
+        earnings = d.get("earnings", 0)
+        mishaps = d.get("mishaps", 0)
+        if earnings >= 2000:
+            comment = random.choice(NAVIKO_MONTHLY_GREAT)
+        elif mishaps >= 2 or earnings < 500:
+            comment = random.choice(NAVIKO_MONTHLY_BAD)
+        else:
+            comment = random.choice(NAVIKO_MONTHLY_GOOD)
+
+        lines = comment.split("\n")
+        pyxel.text(32, 198, lines[0], C_WHITE, self.font_s)
+        if len(lines) > 1:
+            pyxel.text(32, 212, lines[1], C_WHITE, self.font_s)
+        if len(lines) > 2:
+            pyxel.text(32, 226, lines[2], C_WHITE, self.font_s)
+
+        self.buttons["cont"].draw(self.font, C_DGRAY, C_WHITE, C_GRAY)
+
+    # Phase 4: Rank up screen
+
+    def draw_rankup(self):
+        pyxel.cls(C_BLACK)
+
+        # Sparkle animation
+        frame = pyxel.frame_count
+        for i in range(8):
+            sx = 40 + (i * 30 + frame * 2) % 200
+            sy = 20 + (i * 17 + frame) % 60
+            col = C_YELLOW if (frame + i) % 3 else C_WHITE
+            pyxel.pset(sx, sy, col)
+
+        text_centered(90, "★ ランクアップ！ ★", C_YELLOW, self.font)
+
+        old_rank = REP_RANKS[self.rankup_from]
+        new_rank = REP_RANKS[self.rep_rank]
+        text_centered(130, f"{old_rank} → {new_rank}", C_WHITE, self.font)
+
+        # Rank name
+        rank_names = {
+            "E": "無名", "D": "そこそこ", "C": "中堅",
+            "B": "有名", "A": "トップ", "S": "伝説",
+        }
+        rank_desc = rank_names.get(new_rank, "")
+        text_centered(160, f"「{rank_desc}」", C_SKYBLUE, self.font_s)
+
+        # Naviko comment
+        pyxel.rect(0, 190, WIDTH, 50, C_NAVY)
+        pyxel.rectb(0, 190, WIDTH, 50, C_YELLOW)
+        pyxel.circ(16, 212, 8, C_LAVENDER)
+        pyxel.text(10, 209, "ナ", C_WHITE, self.font_s)
+        comment = random.choice(NAVIKO_RANKUP)
+        lines = comment.split("\n")
+        pyxel.text(32, 198, lines[0], C_WHITE, self.font_s)
+        if len(lines) > 1:
+            pyxel.text(32, 212, lines[1], C_WHITE, self.font_s)
+
+        self.buttons["cont"].draw(self.font, C_DGRAY, C_WHITE, C_GRAY)
+
+    # Phase 4: Tax event screen
+
+    def draw_tax_event(self):
+        pyxel.cls(C_BLACK)
+
+        text_centered(10, "確定申告の季節！", C_YELLOW, self.font)
+        pyxel.line(0, 28, WIDTH, 28, C_DGRAY)
+
+        # Income summary
+        text_centered(44, f"1年間の収益: {self.tax_year_income}G", C_WHITE, self.font_s)
+
+        # Naviko comment
+        pyxel.rect(0, 66, WIDTH, 44, C_NAVY)
+        pyxel.rectb(0, 66, WIDTH, 44, C_DGRAY)
+        pyxel.circ(16, 86, 8, C_LAVENDER)
+        pyxel.text(10, 83, "ナ", C_WHITE, self.font_s)
+        comment = random.choice(NAVIKO_TAX)
+        lines = comment.split("\n")
+        pyxel.text(32, 72, lines[0], C_WHITE, self.font_s)
+        if len(lines) > 1:
+            pyxel.text(32, 86, lines[1], C_WHITE, self.font_s)
+        if len(lines) > 2:
+            pyxel.text(32, 100, lines[2], C_WHITE, self.font_s)
+
+        # Tax choice buttons
+        tax_labels = [
+            "自分で申告する（税率10%）",
+            "AIに任せる（ギャンブル）",
+            "税理士に依頼（税率15%）",
+            "放置する（追徴30%）",
+        ]
+        for i in range(4):
+            key = f"tax{i}"
+            if key in self.buttons:
+                btn = self.buttons[key]
+                bg = C_NAVY
+                border = C_GRAY
+                if i == 0:
+                    border = C_GREEN
+                elif i == 1:
+                    border = C_ORANGE
+                elif i == 3:
+                    border = C_RED
+                pyxel.rect(btn.x, btn.y, btn.w, btn.h, bg)
+                pyxel.rectb(btn.x, btn.y, btn.w, btn.h, border)
+                pyxel.text(btn.x + 8, btn.y + (btn.h - 12) // 2, tax_labels[i], C_WHITE, self.font_s)
+
     def draw_ai_detail(self):
         pyxel.cls(C_BLACK)
         if not self.agents:
@@ -830,12 +1170,33 @@ class Game:
         text_centered(10, "設備ショップ", C_YELLOW, self.font)
         pyxel.text(8, 28, f"所持金: {self.coins}G", C_GREEN, self.font_s)
 
+        has_office_btn = self.office_level < len(OFFICE_LEVELS) - 1
+
+        # Phase 4: Office upgrade at top
+        if has_office_btn:
+            next_lv = OFFICE_LEVELS[self.office_level + 1]
+            cur_name = OFFICE_LEVELS[self.office_level]["name"]
+            can_buy = self.coins >= next_lv["cost"]
+
+            btn = self.buttons.get("office_up")
+            if btn:
+                bg = C_DGREEN if can_buy else C_DGRAY
+                border = C_YELLOW if can_buy else C_GRAY
+                draw_panel(btn.x, btn.y, btn.w, btn.h, bg, border)
+                pyxel.text(btn.x + 8, btn.y + 6, f"{cur_name} → {next_lv['name']}", C_WHITE, self.font_s)
+                pyxel.text(btn.x + 8, btn.y + 22, next_lv["desc"], C_GRAY, self.font_s)
+                cost_col = C_YELLOW if can_buy else C_RED
+                pyxel.text(btn.x + 140, btn.y + 6, f"{next_lv['cost']}G", cost_col, self.font_s)
+                pyxel.text(btn.x + 8, btn.y + 36, "事務所拡張", C_YELLOW, self.font_s)
+
+        # Equipment list
+        eq_y_start = 98 if has_office_btn else 44
         visible = self._visible_equips()
-        if not visible:
+        if not visible and not has_office_btn:
             text_centered(140, "設備がありません", C_DGRAY, self.font_s)
         else:
             for i, eq in enumerate(visible):
-                y = 44 + i * 54
+                y = eq_y_start + i * 54
                 owned = eq["name"] in self.owned_equip
                 can_buy = self.coins >= eq["cost"] and not owned
 
@@ -861,9 +1222,10 @@ class Game:
 
         # Scroll buttons
         if self.equip_scroll > 0:
-            self.buttons["scroll_up"] = Button(120, 34, 100, 20, "▲ 上へ")
+            self.buttons["scroll_up"] = Button(120, eq_y_start - 10, 100, 20, "▲ 上へ")
             self.buttons["scroll_up"].draw(self.font_s, C_DGRAY, C_GRAY, C_GRAY)
-        if self.equip_scroll + 4 < len(EQUIPMENTS):
+        max_visible = 3 if has_office_btn else 4
+        if self.equip_scroll + max_visible < len(EQUIPMENTS):
             self.buttons["scroll_down"] = Button(120, 260, 100, 20, "▼ 下へ")
             self.buttons["scroll_down"].draw(self.font_s, C_DGRAY, C_GRAY, C_GRAY)
 

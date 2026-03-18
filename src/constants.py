@@ -301,3 +301,62 @@ RANDOM_NAMES = [
     "エラー太郎", "デバッグ丸", "スタック助", "ヌルポ之介", "セグフォ吉",
     "チャット丸", "プロンプ太", "トークン助", "ハルシ之介", "ファイン丸",
 ]
+
+# ── Phase 4: Office levels ──
+OFFICE_LEVELS = [
+    {"name": "自宅の一角", "cost": 0, "bonus": 0, "desc": "すべてはここから"},
+    {"name": "ワンルーム", "cost": 5000, "bonus": 10, "desc": "収益+10%"},
+    {"name": "フロアオフィス", "cost": 20000, "bonus": 15, "desc": "収益+15% 負荷回復UP"},
+    {"name": "ビル1棟", "cost": 100000, "bonus": 25, "desc": "収益+25% 負荷回復UP"},
+    {"name": "AI帝国タワー", "cost": 500000, "bonus": 40, "desc": "収益+40% 負荷回復UP"},
+]
+
+# ── Phase 4: Tax event ──
+TAX_EVENT_CHOICES = [
+    {"text": "自分で申告する", "tax_rate": 0.10, "rep": 0, "fatigue": 1,
+     "result_text": "正確に申告完了。\n時間はかかったけど安心。"},
+    {"text": "AIに任せる", "gamble": True, "tax_rate": 0.05, "rep": 0,
+     "result_text": "AIが節税テクを発見！\n還付金ゲット！",
+     "gamble_fail_tax_rate": 0.25, "gamble_fail_rep": -1,
+     "gamble_fail_text": "AIが経費を水増し…\n税務調査が入った。"},
+    {"text": "税理士に依頼する", "tax_rate": 0.15, "rep": 0,
+     "result_text": "プロに任せて安心。\nちょっとお高い。"},
+    {"text": "放置する", "tax_rate": 0.30, "rep": -2,
+     "result_text": "追徴課税キター！\n評判もガタ落ち…"},
+]
+
+TAX_AGENT_FAILS = {
+    "poem": "申告書にポエムを書いた。\n税務署困惑。",
+    "bugmaru": "計算を無限ループ。\n期限切れ…",
+    "hattari": "経費を10倍に水増し。\n税務調査確定。",
+}
+
+# ── Phase 4: Monthly report ──
+NAVIKO_MONTHLY_GOOD = [
+    "いい月だったね。この調子。",
+    "順調だよ。悪くない。",
+    "黒字でなにより。",
+]
+NAVIKO_MONTHLY_BAD = [
+    "微妙な月だったね…",
+    "やらかし多くない？",
+    "来月は頑張ろ。",
+]
+NAVIKO_MONTHLY_GREAT = [
+    "すごい月！やるじゃん！",
+    "大黒字！帝国への道だね。",
+    "ボス、才能あるかも？",
+]
+
+# ── Phase 4: Rank up ──
+NAVIKO_RANKUP = [
+    "評判ランクUP！\nいい感じだよ。",
+    "ランク昇格！\nいい案件が来るようになるよ。",
+    "ランクアップ！\n経営判断が効いてるね。",
+]
+
+NAVIKO_TAX = [
+    "確定申告の季節だよ。\nどう対応する？",
+    "税金の時間。副業の宿命だね。",
+    "申告しないと追徴課税だからね？",
+]
