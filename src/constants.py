@@ -223,7 +223,7 @@ MISHAPS = {
                 {"text": "プラン課金する", "cost": -500, "rep": 0, "fatigue": -4, "result_text": "上限解除！\n負荷も大幅リセット！"},
                 {"text": "リセットまで待つ", "cost": 0, "rep": 0, "fatigue": 1, "result_text": "深夜にリセット。\n1日ムダにした。負荷↑"},
                 {"text": "予備AIを起動する", "cost": -300, "rep": 0, "fatigue": -1, "result_text": "予備AIが対応。\n負荷も少し軽減。"},
-                {"text": "クライアントに\n休憩宣言する", "cost": 0, "rep": -1, "result_text": "クライアント不満。\nでも上限はリセット。"},
+                {"text": "クライアントに\n休憩宣言する", "cost": 0, "rep": -1, "fatigue": -2, "result_text": "クライアント不満…\nでも負荷はリセットできた。"},
             ],
         },
         {
