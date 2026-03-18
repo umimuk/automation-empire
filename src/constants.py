@@ -37,15 +37,15 @@ AI_POEM = 0     # ポエム（クリエイター適性）
 AI_BUGMARU = 1  # バグ丸（テック適性）
 AI_HATTARI = 2  # ハッタリ（ビジネス適性）
 
-AI_NAMES_DEFAULT = ["ポエム", "バグ丸", "ハッタリ"]
-AI_TYPES = ["クリエイター", "テック", "ビジネス"]
+AI_NAMES_DEFAULT = ["Poem", "Bugmaru", "Hattari"]
+AI_TYPES = ["Creator", "Tech", "Business"]
 AI_COLORS = [COL_PINK, COL_BLUE, COL_ORANGE]
 
 # 副業レベル
 JOB_LV1 = [
-    {"name": "データ入力", "base_income": 1, "desc": "最初の収入源。クリックの基本"},
-    {"name": "アンケート代筆", "base_income": 2, "desc": "クリック効率UP"},
-    {"name": "リサーチ代行", "base_income": 3, "desc": "情報リソース獲得"},
+    {"name": "Data Entry", "base_income": 1, "desc": "Your first income. Click basics."},
+    {"name": "Survey Writing", "base_income": 2, "desc": "Improves click efficiency."},
+    {"name": "Research Assistant", "base_income": 3, "desc": "Gain info resources."},
 ]
 
 # クリック基本収入
@@ -63,20 +63,20 @@ INCIDENT_LV_REDUCTION = 0.005  # レベルあたり-0.5%
 
 # チュートリアルメッセージ
 TUTORIAL_MESSAGES = [
-    "やぁ、初めまして。\nナビ子だよ。",
-    "ここは「自動化帝国」。\nAIと一緒に副業して\n稼ぐゲームだよ。",
-    "まずは画面をクリックして\nコインを稼いでみて。",
-    "…あ、その前に。\nあなたの相棒になるAIを\n選んでもらうんだった。",
-    "3体いるけど、\nどれもポンコツだから\nまあ好きなの選んで。",
+    "Hey, nice to meet you.\nI'm Naviko.",
+    "This is 'Automation Empire'.\nTeam up with AI and grind\nyour side hustle.",
+    "First, click the screen\nand earn some coins.",
+    "...Oh wait, right.\nYou need to pick an AI\nto be your partner.",
+    "Three to choose from,\nbut they're all garbage.\nJust pick one you like.",
 ]
 
 # ナビ子のセリフ集
 NAVIKO_LINES = {
-    "select_intro": "さて、こいつらが御三家。\nどれもポンコツだけど\n好きなの選んで。",
-    "poem_desc": "ポエム。クリエイター適性。\n感性が暴走するタイプ。\n納品物にポエム混入注意。",
-    "bugmaru_desc": "バグ丸。テック適性。\n真面目だけど詰めが甘い。\n自信満々にバグ納品する。",
-    "hattari_desc": "ハッタリ。ビジネス適性。\nコミュ力おばけ。口が上手い。\n数字は盛る方向で丸める。",
-    "selected": "…{name}ね。まあ、頑張って。\n私がフォローするから。",
-    "tutorial_click": "画面をクリックして\nコインを稼いでみて。\n{name}も手伝う…はず。",
-    "first_job": "最初の副業「データ入力」を\nアンロックしたよ。\n{name}に任せてみて。",
+    "select_intro": "Alright, meet the Big Three.\nThey're all disasters,\nbut pick your favorite.",
+    "poem_desc": "Poem. Creator type.\nSensitivity goes haywire.\nWatch out for poetry in deliverables.",
+    "bugmaru_desc": "Bugmaru. Tech type.\nHard worker, but sloppy.\nDelivers bugs with confidence.",
+    "hattari_desc": "Hattari. Business type.\nMaster talker. Silver tongue.\nAlways rounds numbers up.",
+    "selected": "...{name}, huh. Sure, good luck.\nI'll cover for you.",
+    "tutorial_click": "Click the screen\nand earn some coins.\n{name} will help... probably.",
+    "first_job": "Unlocked your first gig:\n'Data Entry'.\nLeave it to {name}.",
 }

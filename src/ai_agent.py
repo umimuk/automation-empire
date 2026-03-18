@@ -40,6 +40,8 @@ class AIAgent:
     @property
     def exp_progress(self):
         """現在の経験値の進捗率 (0.0-1.0)"""
+        if self.level >= 10:
+            return 1.0
         needed = self.exp_to_next
         if needed <= 0:
             return 1.0
