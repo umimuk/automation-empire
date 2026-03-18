@@ -127,7 +127,7 @@ MISHAPS = {
                 {"text": "強制的に作業再開", "cost": 0, "rep": 0, "fatigue": 1, "result_text": "渋々再開した。\nちょっと不機嫌。負荷↑"},
                 {"text": "投稿してバズ狙い", "gamble": True, "cost": 300, "rep": 1, "result_text": "バズった！\nフォロワー爆増！", "gamble_fail_text": "いいね0。\n黒歴史確定。", "gamble_fail_rep": -1, "gamble_fail_cost": 0},
                 {"text": "リサーチということに\nする", "cost": 0, "rep": 0, "result_text": "リサーチってことで\n誰も気づかなかった。"},
-                {"text": "おやつで釣って\nリフレッシュ", "cost": -100, "rep": 0, "fatigue": -1, "result_text": "おやつ効果抜群。\nリフレッシュして再開！"},
+                {"text": "キャッシュを\nクリアする", "cost": -100, "rep": 0, "fatigue": -1, "result_text": "キャッシュ削除完了。\n動作も気分もスッキリ！"},
             ],
         },
     ],
