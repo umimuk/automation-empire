@@ -10,7 +10,7 @@ from src.constants import (
     REP_RANKS, STARTERS, RANDOM_NAMES,
     ALL_JOBS, EQUIPMENTS, MISHAPS, NAVIKO_MISHAP, NAVIKO_SUCCESS,
     AI_WEAKNESS, AI_STRENGTH,
-    NAVIKO_OVERLOAD, NAVIKO_DEFRAG,
+    NAVIKO_OVERLOAD, NAVIKO_DEFRAG, NAVIKO_IDLE,
 )
 from src.ui import Button, text_centered, draw_panel
 
@@ -272,8 +272,33 @@ class Game:
 
         job = self.current_job
         if job is None:
-            # No job selected - default simple task
-            job = {"name": "データ入力", "pay": 100, "diff": "★", "stat": None, "threshold": 0, "rank": 0}
+            # No job selected - idle week (chat with AI, no earnings)
+            a["fatigue"] = max(0, a["fatigue"] - 1)
+            a["status"] = "サボり"
+
+            idle_msgs = [
+                "AIと雑談して終わった。",
+                "YouTube見てたら\n1週間過ぎてた。",
+                "「いつかやる」リストを\n眺めて終了。",
+                "プロンプトの研究と称して\n何もしなかった。",
+            ]
+
+            self.turn_log = [
+                f"{yr}年目 {mo}月 第{wk}週",
+                "",
+                f"{a['name']}は",
+                random.choice(idle_msgs),
+                "",
+                "収益: 0G",
+                "",
+                "（負荷が少し下がった）",
+            ]
+
+            self.naviko_msg = random.choice(NAVIKO_IDLE)
+            self.week += 1
+            self.mishap_event = None
+            self.change_scene("result")
+            return
 
         # Calculate earnings
         base_pay = job["pay"]
@@ -318,7 +343,8 @@ class Game:
 
             self.coins += earned
             a["exp"] += 5  # less exp on mishap
-            a["fatigue"] = min(10, a["fatigue"] + 2)
+            fat_add = 1 if self._has_equip("fatigue_reduce") else 2
+            a["fatigue"] = min(10, a["fatigue"] + fat_add)
             a["status"] = "やらかし…"
 
             self.turn_log = [
@@ -356,7 +382,11 @@ class Game:
 
         self.coins += earned
         a["exp"] += 15 if is_strong else 10
-        a["fatigue"] = min(10, a["fatigue"] + 1)
+        # Memory expansion: 50% chance to skip fatigue gain
+        if self._has_equip("fatigue_reduce") and random.random() < 0.5:
+            pass  # no fatigue gain this turn
+        else:
+            a["fatigue"] = min(10, a["fatigue"] + 1)
         a["status"] = "作業完了"
 
         self.turn_log = [
@@ -402,12 +432,18 @@ class Game:
         bonus = 0
         for eq in EQUIPMENTS:
             if eq["name"] in self.owned_equip:
-                if eq["stat"] is None:
-                    # Universal bonus (server rack)
+                if eq["effect"] == "all_bonus":
                     bonus += eq["bonus"]
-                elif eq["stat"] == stat_name:
+                elif eq["effect"] == "bonus" and eq["stat"] == stat_name:
                     bonus += eq["bonus"]
         return bonus
+
+    def _has_equip(self, effect_type):
+        """Check if player owns equipment with given effect type."""
+        for eq in EQUIPMENTS:
+            if eq["effect"] == effect_type and eq["name"] in self.owned_equip:
+                return True
+        return False
 
     def _calc_mishap_chance(self, agent, job):
         """Calculate mishap probability."""
@@ -424,6 +460,9 @@ class Game:
         base += agent["fatigue"] * 0.02
         # Level reduces mishap
         base -= agent["level"] * 0.01
+        # Cooling system reduces mishap
+        if self._has_equip("mishap_reduce"):
+            base -= 0.05
         return max(0.03, min(0.5, base))
 
     def _pick_mishap(self, agent):

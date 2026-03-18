@@ -86,12 +86,14 @@ JOBS_LV2_BIZ = [
 ALL_JOBS = JOBS_LV1 + JOBS_LV2_CREATOR + JOBS_LV2_TECH + JOBS_LV2_BIZ
 
 # ── Equipment definitions ──
+# effect: "bonus" = % revenue up for stat, "fatigue_reduce" = fatigue per turn reduced,
+#         "mishap_reduce" = mishap rate reduced, "all_bonus" = universal % up
 EQUIPMENTS = [
-    {"name": "高性能PC", "cost": 3000, "stat": "技術", "bonus": 10, "desc": "技術系の品質+10%"},
-    {"name": "ペンタブレット", "cost": 2000, "stat": "創造", "bonus": 10, "desc": "創造系の品質+10%"},
-    {"name": "ホワイトボード", "cost": 1500, "stat": "営業", "bonus": 10, "desc": "営業系の品質+10%"},
-    {"name": "コーヒーマシン", "cost": 2500, "stat": "体力", "bonus": 0, "desc": "負荷の自然軽減UP"},
-    {"name": "サーバーラック", "cost": 10000, "stat": None, "bonus": 20, "desc": "全副業の収益+20%"},
+    {"name": "GPU増設", "cost": 2000, "effect": "bonus", "stat": "技術", "bonus": 15, "desc": "技術系の収益+15%"},
+    {"name": "メモリ拡張", "cost": 2500, "effect": "fatigue_reduce", "stat": None, "bonus": 0, "desc": "負荷の蓄積を軽減"},
+    {"name": "高速回線", "cost": 3000, "effect": "bonus", "stat": "創造", "bonus": 15, "desc": "創造系の収益+15%"},
+    {"name": "冷却システム", "cost": 3500, "effect": "mishap_reduce", "stat": None, "bonus": 0, "desc": "やらかし率ダウン"},
+    {"name": "専用サーバー", "cost": 12000, "effect": "all_bonus", "stat": None, "bonus": 25, "desc": "全副業の収益+25%"},
 ]
 
 # ── Mishap (やらかし) definitions ──
@@ -131,6 +133,14 @@ NAVIKO_SUCCESS = [
     "順調だね。", "まあまあかな。", "この調子！",
     "悪くないよ。", "頑張ってるね。",
     "やるじゃん。", "いい感じ。",
+]
+
+# Naviko idle (no job selected) comments
+NAVIKO_IDLE = [
+    "…今週何もしてないけど\n大丈夫？",
+    "AIと雑談して\n1週間終わったね…",
+    "案件選んでないよ？\nさすがに何かやろう。",
+    "今週の成果：\n雑談スキルが上がった。",
 ]
 
 # Naviko overload warnings
