@@ -1,4 +1,7 @@
 """Game constants and data definitions."""
+import os
+
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Screen
 WIDTH = 240
@@ -22,9 +25,9 @@ C_LAVENDER = 13
 C_PINK = 14
 C_PEACH = 15
 
-# Font paths (relative to project root)
-FONT_MAIN = "assets/umplus_j12r.bdf"
-FONT_SMALL = "assets/umplus_j10r.bdf"
+# Font paths (absolute, resolved from project root)
+FONT_MAIN = os.path.join(_BASE_DIR, "assets", "umplus_j12r.bdf")
+FONT_SMALL = os.path.join(_BASE_DIR, "assets", "umplus_j10r.bdf")
 
 # Reputation ranks
 REP_RANKS = ["E", "D", "C", "B", "A", "S"]
