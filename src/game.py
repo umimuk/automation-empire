@@ -187,18 +187,29 @@ class Game:
 
     def _apply_choice(self, choice):
         """Apply the effect of a mishap choice."""
-        cost = choice.get("cost", 0)
-        rep = choice.get("rep", 0)
         if choice.get("gamble", False):
             if random.random() < 0.5:
-                result_text = choice.get("result_text", "Success!")
+                # Gamble success
+                cost = choice.get("cost", 0)
+                rep = choice.get("rep", 0)
+                fatigue = choice.get("fatigue", 0)
+                result_text = choice.get("result_text", "")
             else:
+                # Gamble fail - use separate fail values
+                cost = choice.get("gamble_fail_cost", 0)
+                rep = choice.get("gamble_fail_rep", 0)
+                fatigue = choice.get("gamble_fail_fatigue", 0)
                 result_text = choice.get("gamble_fail_text", "Failed.")
-                rep += choice.get("gamble_fail_rep", 0)
         else:
+            cost = choice.get("cost", 0)
+            rep = choice.get("rep", 0)
+            fatigue = choice.get("fatigue", 0)
             result_text = choice.get("result_text", "")
         self.coins = max(0, self.coins + cost)
         self.rep_rank = max(0, min(len(REP_RANKS) - 1, self.rep_rank + rep))
+        if self.agents and fatigue != 0:
+            a = self.agents[0]
+            a["fatigue"] = max(0, min(10, a["fatigue"] + fatigue))
         self.naviko_msg = result_text
 
     def update_ai_detail(self):
