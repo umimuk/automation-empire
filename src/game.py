@@ -768,6 +768,10 @@ class Game:
         text_centered(10, "案件ボード", C_YELLOW, self.font)
         pyxel.text(8, 30, "タップで選択→もう一度タップで受注", C_GRAY, self.font_s)
 
+        # Clean up ghost scroll buttons from previous frame
+        self.buttons.pop("scroll_up", None)
+        self.buttons.pop("scroll_down", None)
+
         if not self.available_jobs:
             text_centered(140, "案件がありません", C_DGRAY, self.font_s)
         else:
