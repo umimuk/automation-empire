@@ -4,6 +4,9 @@ from src.constants import (
     AI_NAMES_DEFAULT, AI_TYPES, AI_COLORS,
     AI_BASE_EFFICIENCY, AI_GROWTH_RATE,
     AI_EXP_PER_CLICK, AI_EXP_CURVE,
+    AI_APTITUDE, ROUTE_NONE,
+    APTITUDE_BONUS, APTITUDE_NORMAL, APTITUDE_PENALTY,
+    APTITUDE_INCIDENT_BONUS, APTITUDE_INCIDENT_PENALTY,
 )
 
 
@@ -19,11 +22,40 @@ class AIAgent:
         self.exp = 0
         self.total_earned = 0
         self.incident_count = 0
+        self.route = ROUTE_NONE  # 未選択
+        self.aptitude_route = AI_APTITUDE[ai_type]  # 得意ルート
 
     @property
     def efficiency(self):
-        """自動収入の効率（レベルに応じて上昇）"""
-        return AI_BASE_EFFICIENCY + AI_GROWTH_RATE * (self.level - 1)
+        """自動収入の効率（レベルに応じて上昇、適性でボーナス）"""
+        base = AI_BASE_EFFICIENCY + AI_GROWTH_RATE * (self.level - 1)
+        return base * self.growth_multiplier
+
+    @property
+    def growth_multiplier(self):
+        """ルート適性による成長倍率"""
+        if self.route == ROUTE_NONE:
+            return APTITUDE_NORMAL
+        if self.route == self.aptitude_route:
+            return APTITUDE_BONUS
+        # 苦手判定（適性と対角のルート）
+        # Creator↔Tech↔Business で隣は普通、対角は苦手
+        diff = abs(self.route - self.aptitude_route)
+        if diff == 2:
+            return APTITUDE_PENALTY
+        return APTITUDE_NORMAL
+
+    @property
+    def incident_multiplier(self):
+        """やらかし確率倍率（適性で変動）"""
+        if self.route == ROUTE_NONE:
+            return 1.0
+        if self.route == self.aptitude_route:
+            return APTITUDE_INCIDENT_BONUS
+        diff = abs(self.route - self.aptitude_route)
+        if diff == 2:
+            return APTITUDE_INCIDENT_PENALTY
+        return 1.0
 
     @property
     def auto_income(self):
@@ -49,7 +81,8 @@ class AIAgent:
 
     def add_exp(self, amount):
         """経験値を追加。レベルアップしたらTrueを返す"""
-        self.exp += amount
+        adjusted = int(amount * self.growth_multiplier)
+        self.exp += max(1, adjusted)
         leveled_up = False
         while self.exp >= self.exp_to_next and self.level < 10:
             self.exp -= self.exp_to_next
@@ -57,7 +90,11 @@ class AIAgent:
             leveled_up = True
         return leveled_up
 
+    def set_route(self, route):
+        """ルートを設定"""
+        self.route = route
+
     def rename(self, new_name):
         """名前変更"""
         if new_name.strip():
-            self.name = new_name.strip()[:8]  # 最大8文字
+            self.name = new_name.strip()[:8]
