@@ -183,6 +183,15 @@ class Game:
         if self.buttons["back"].clicked():
             self.change_scene("office")
             return
+        # Scroll handling
+        if "scroll_up" in self.buttons and self.buttons["scroll_up"].clicked():
+            if self.job_scroll > 0:
+                self.job_scroll -= 1
+            return
+        if "scroll_down" in self.buttons and self.buttons["scroll_down"].clicked():
+            if self.job_scroll + 4 < len(self.available_jobs):
+                self.job_scroll += 1
+            return
         # Check job slot clicks
         visible_count = min(len(self.available_jobs) - self.job_scroll, 4)
         for i in range(visible_count):
@@ -206,6 +215,15 @@ class Game:
     def update_equip_shop(self):
         if self.buttons["back"].clicked():
             self.change_scene("office")
+            return
+        # Scroll handling
+        if "scroll_up" in self.buttons and self.buttons["scroll_up"].clicked():
+            if self.equip_scroll > 0:
+                self.equip_scroll -= 1
+            return
+        if "scroll_down" in self.buttons and self.buttons["scroll_down"].clicked():
+            if self.equip_scroll + 4 < len(EQUIPMENTS):
+                self.equip_scroll += 1
             return
         # Check equip slot clicks
         visible = self._visible_equips()
@@ -704,11 +722,13 @@ class Game:
                 if self.current_job and self.current_job["name"] == job["name"]:
                     pyxel.text(150, y + 32, "受注中", C_GREEN, self.font_s)
 
-        # Scroll indicators
+        # Scroll buttons
         if self.job_scroll > 0:
-            text_centered(38, "▲", C_GRAY, self.font_s)
+            self.buttons["scroll_up"] = Button(120, 34, 100, 20, "▲ 上へ")
+            self.buttons["scroll_up"].draw(self.font_s, C_DGRAY, C_GRAY, C_GRAY)
         if self.job_scroll + 4 < len(self.available_jobs):
-            text_centered(264, "▼", C_GRAY, self.font_s)
+            self.buttons["scroll_down"] = Button(120, 260, 100, 20, "▼ 下へ")
+            self.buttons["scroll_down"].draw(self.font_s, C_DGRAY, C_GRAY, C_GRAY)
 
         self.buttons["back"].draw(self.font_s, C_DGRAY, C_WHITE, C_GRAY)
 
@@ -745,6 +765,14 @@ class Game:
                 else:
                     cost_col = C_GREEN if can_buy else C_RED
                     pyxel.text(150, y + 6, f"{eq['cost']}G", cost_col, self.font_s)
+
+        # Scroll buttons
+        if self.equip_scroll > 0:
+            self.buttons["scroll_up"] = Button(120, 34, 100, 20, "▲ 上へ")
+            self.buttons["scroll_up"].draw(self.font_s, C_DGRAY, C_GRAY, C_GRAY)
+        if self.equip_scroll + 4 < len(EQUIPMENTS):
+            self.buttons["scroll_down"] = Button(120, 260, 100, 20, "▼ 下へ")
+            self.buttons["scroll_down"].draw(self.font_s, C_DGRAY, C_GRAY, C_GRAY)
 
         self.buttons["back"].draw(self.font_s, C_DGRAY, C_WHITE, C_GRAY)
 
