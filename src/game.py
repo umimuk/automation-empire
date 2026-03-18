@@ -10,6 +10,7 @@ from src.constants import (
     REP_RANKS, STARTERS, RANDOM_NAMES,
     ALL_JOBS, EQUIPMENTS, MISHAPS, NAVIKO_MISHAP, NAVIKO_SUCCESS,
     AI_WEAKNESS, AI_STRENGTH,
+    NAVIKO_OVERLOAD, NAVIKO_DEFRAG,
 )
 from src.ui import Button, text_centered, draw_panel
 
@@ -81,6 +82,7 @@ class Game:
             # Mishap event screen - just acknowledge
             self.buttons["ok"] = Button(40, 268, 160, 36, "了解…")
         elif s == "ai_detail":
+            self.buttons["defrag"] = Button(40, 236, 160, 32, "デフラグ")
             self.buttons["back"] = Button(40, 276, 160, 36, "戻る")
         elif s == "job_board":
             self._refresh_job_board()
@@ -171,6 +173,9 @@ class Game:
             self.change_scene("office")
 
     def update_ai_detail(self):
+        if self.buttons["defrag"].clicked():
+            self._do_defrag()
+            return
         if self.buttons["back"].clicked():
             self.change_scene("office")
 
@@ -236,6 +241,30 @@ class Game:
         return visible
 
     # ── Turn logic ──
+
+    def _do_defrag(self):
+        """Defrag: skip 1 turn, reset load to 0."""
+        a = self.agents[0]
+        yr, mo, wk = self._week_to_date(self.week)
+
+        a["fatigue"] = 0
+        a["status"] = "デフラグ完了"
+
+        self.turn_log = [
+            f"{yr}年目 {mo}月 第{wk}週",
+            "",
+            f"{a['name']}を",
+            "デフラグ実行中…",
+            "",
+            "負荷をリセットしました。",
+            "",
+            "（このターンは副業なし）",
+        ]
+
+        self.naviko_msg = random.choice(NAVIKO_DEFRAG)
+        self.week += 1
+        self.mishap_event = None
+        self.change_scene("result")
 
     def _do_turn(self):
         a = self.agents[0]
@@ -358,10 +387,11 @@ class Game:
                 f"所持: {self.coins}G  評判:{REP_RANKS[self.rep_rank]}"
             )
 
-        # Fatigue recovery hint
+        # Overload warning
         if a["fatigue"] >= 6:
             self.turn_log.append("")
-            self.turn_log.append("⚠ 疲労が溜まってる…")
+            self.turn_log.append("⚠ 負荷が高い…")
+            self.naviko_msg = random.choice(NAVIKO_OVERLOAD)
 
         self.week += 1
         self.mishap_event = None
@@ -586,15 +616,23 @@ class Game:
             pyxel.text(180, sy, str(val), C_WHITE, self.font_s)
             sy += 20
 
-        # Fatigue
-        pyxel.text(24, sy, "疲労", C_GRAY, self.font_s)
+        # Load (負荷)
+        pyxel.text(24, sy, "負荷", C_GRAY, self.font_s)
         pyxel.rect(72, sy + 1, 100, 10, C_DGRAY)
         fat_w = min(a["fatigue"] * 10, 100)
         fat_col = C_RED if a["fatigue"] >= 6 else C_ORANGE if a["fatigue"] >= 3 else C_GREEN
         pyxel.rect(72, sy + 1, fat_w, 10, fat_col)
+        if a["fatigue"] >= 6:
+            pyxel.text(180, sy, "危険", C_RED, self.font_s)
         sy += 20
 
         text_centered(sy + 6, f"状態: {a['status']}", C_WHITE, self.font_s)
+
+        # Defrag button
+        defrag_col = C_DGREEN if a["fatigue"] >= 3 else C_DGRAY
+        defrag_txt_col = C_WHITE if a["fatigue"] >= 3 else C_GRAY
+        self.buttons["defrag"].draw(self.font_s, defrag_col, defrag_txt_col, C_GREEN if a["fatigue"] >= 3 else C_GRAY)
+
         self.buttons["back"].draw(self.font, C_DGRAY, C_WHITE, C_GRAY)
 
     def draw_job_board(self):

@@ -90,7 +90,7 @@ EQUIPMENTS = [
     {"name": "高性能PC", "cost": 3000, "stat": "技術", "bonus": 10, "desc": "技術系の品質+10%"},
     {"name": "ペンタブレット", "cost": 2000, "stat": "創造", "bonus": 10, "desc": "創造系の品質+10%"},
     {"name": "ホワイトボード", "cost": 1500, "stat": "営業", "bonus": 10, "desc": "営業系の品質+10%"},
-    {"name": "コーヒーマシン", "cost": 2500, "stat": "体力", "bonus": 0, "desc": "疲労回復速度UP"},
+    {"name": "コーヒーマシン", "cost": 2500, "stat": "体力", "bonus": 0, "desc": "負荷の自然軽減UP"},
     {"name": "サーバーラック", "cost": 10000, "stat": None, "bonus": 20, "desc": "全副業の収益+20%"},
 ]
 
@@ -131,6 +131,20 @@ NAVIKO_SUCCESS = [
     "順調だね。", "まあまあかな。", "この調子！",
     "悪くないよ。", "頑張ってるね。",
     "やるじゃん。", "いい感じ。",
+]
+
+# Naviko overload warnings
+NAVIKO_OVERLOAD = [
+    "負荷高いよ。\nこのままだとやらかすよ？",
+    "負荷やばくない？\nデフラグした方がいいよ。",
+    "⚠ 負荷限界近い。\nやらかし率上がってるよ。",
+]
+
+# Naviko defrag comments
+NAVIKO_DEFRAG = [
+    "デフラグ完了！\nスッキリしたね。",
+    "負荷リセット。\nまたバリバリ働けるよ。",
+    "最適化完了。\n次のターンから全力で。",
 ]
 
 # AI weakness: agent_id -> list of weak stat names (for mishap rate calc)
