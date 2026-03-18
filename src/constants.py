@@ -135,12 +135,12 @@ NAVIKO_SUCCESS = [
     "やるじゃん。", "いい感じ。",
 ]
 
-# Naviko idle (no job selected) comments
+# Naviko idle (no job selected) comments - directed at player
 NAVIKO_IDLE = [
-    "…今週何もしてないけど\n大丈夫？",
-    "AIと雑談して\n1週間終わったね…",
-    "案件選んでないよ？\nさすがに何かやろう。",
-    "今週の成果：\n雑談スキルが上がった。",
+    "…ボス、今週\n何もしてないけど？",
+    "指示くれないと\nAI暇なんだけど。",
+    "案件選んでよ。\nAI、やることないんだけど。",
+    "ボスがサボると\n全員ヒマになるんだよ？",
 ]
 
 # Naviko overload warnings
