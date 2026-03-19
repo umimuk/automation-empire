@@ -29,11 +29,15 @@ else
     exit 1
 fi
 
-# 4. スプライトシート生成（build_sprites.py があれば実行）
+# 4. スプライトシート生成（build_sprites.py があれば実行、Pillow必須）
 if [ -f build_sprites.py ]; then
-    echo "[4/4] スプライトシート生成..."
-    python3 build_sprites.py
-    echo "       → OK"
+    if python3 -c "from PIL import Image" 2>/dev/null; then
+        echo "[4/4] スプライトシート生成..."
+        python3 build_sprites.py
+        echo "       → OK"
+    else
+        echo "[4/4] スキップ（Pillow未インストール。スプライト再生成が必要なら: pip install Pillow）"
+    fi
 else
     echo "[4/4] スキップ（build_sprites.py なし）"
 fi
