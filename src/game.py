@@ -1011,7 +1011,7 @@ class Game:
         nav_y = 236
         pyxel.rect(0, nav_y, WIDTH, 38, C_NAVY)
         pyxel.rectb(0, nav_y, WIDTH, 38, C_DGRAY)
-        pyxel.blt(1, nav_y + 3, 0, 192, 0, 32, 32, SPRITE_COLKEY)
+        self._draw_naviko_icon(1, nav_y + 3, 32)
         naviko = end.get("naviko", "")
         lines = naviko.split("\n")
         for i, line in enumerate(lines[:3]):
@@ -1047,7 +1047,7 @@ class Game:
             pyxel.rectb(b.x, b.y, b.w, b.h, st["color"])
 
             # Avatar
-            ax, ay = b.x + 18, b.y + 35
+            ax, ay = b.x + 28, b.y + 45
             self._draw_avatar_small(st["id"], ax, ay, st["color"])
 
             # Text
@@ -1136,7 +1136,7 @@ class Game:
         # Naviko message area
         pyxel.rect(0, 268, WIDTH, 60, C_BLACK)
         pyxel.rectb(0, 268, WIDTH, 60, C_DGRAY)
-        self._draw_naviko_icon(2, 272)
+        self._draw_naviko_icon(2, 282, 32)
         for i, line in enumerate(self.naviko_msg.split("\n")):
             pyxel.text(44, 276 + i * 16, line, C_WHITE, self.font_s)
 
@@ -1198,7 +1198,7 @@ class Game:
         msg_idx = (frame // 30) % len(naviko_msgs)
         pyxel.rect(0, 380, WIDTH, 50, C_NAVY)
         pyxel.rectb(0, 380, WIDTH, 50, C_DGRAY)
-        pyxel.blt(2, 389, 0, 192, 0, 32, 32, SPRITE_COLKEY)
+        self._draw_naviko_icon(2, 389, 32)
         pyxel.text(34, 396, naviko_msgs[msg_idx], C_WHITE, self.font_s)
 
     def draw_result(self):
@@ -1257,7 +1257,7 @@ class Game:
         # Naviko comment area
         pyxel.rect(0, 96, WIDTH, 56, C_NAVY)
         pyxel.rectb(0, 96, WIDTH, 56, C_DGRAY)
-        pyxel.blt(2, 104, 0, 192, 0, 32, 32, SPRITE_COLKEY)
+        self._draw_naviko_icon(2, 104, 32)
         msg_lines = self.naviko_msg.split("\n") if self.naviko_msg else ["..."]
         pyxel.text(34, 104, msg_lines[0], C_WHITE, self.font_s)
         if len(msg_lines) > 1:
@@ -1311,7 +1311,7 @@ class Game:
         # Naviko comment
         pyxel.rect(0, 300, WIDTH, 60, C_NAVY)
         pyxel.rectb(0, 300, WIDTH, 60, C_DGRAY)
-        pyxel.blt(2, 310, 0, 192, 0, 32, 32, SPRITE_COLKEY)
+        self._draw_naviko_icon(2, 310, 32)
 
         comment = self._scene_comment
         lines = comment.split("\n")
@@ -1353,7 +1353,7 @@ class Game:
         # Naviko comment
         pyxel.rect(0, 190, WIDTH, 50, C_NAVY)
         pyxel.rectb(0, 190, WIDTH, 50, C_YELLOW)
-        pyxel.blt(1, 199, 0, 192, 0, 32, 32, SPRITE_COLKEY)
+        self._draw_naviko_icon(1, 199, 32)
         comment = self._scene_comment
         lines = comment.split("\n")
         pyxel.text(32, 198, lines[0], C_WHITE, self.font_s)
@@ -1376,7 +1376,7 @@ class Game:
         # Naviko comment
         pyxel.rect(0, 66, WIDTH, 44, C_NAVY)
         pyxel.rectb(0, 66, WIDTH, 44, C_DGRAY)
-        pyxel.blt(1, 73, 0, 192, 0, 32, 32, SPRITE_COLKEY)
+        self._draw_naviko_icon(1, 73, 32)
         comment = self._scene_comment
         lines = comment.split("\n")
         pyxel.text(32, 72, lines[0], C_WHITE, self.font_s)
@@ -1581,8 +1581,8 @@ class Game:
         else:
             pyxel.circ(cx, cy, 28, col)
 
-    def _draw_naviko_icon(self, x, y, size=40):
-        """Draw nabiko face icon for comment panels (cropped from 64x64)."""
+    def _draw_naviko_icon(self, x, y, size=32):
+        """Draw nabiko face icon for comment panels (center-cropped from 64x64)."""
         nu, nv = SPRITE_UV["nabiko"]
         offset = (SPRITE_SZ - size) // 2
-        pyxel.blt(x, y, 0, nu + offset, nv, size, size, SPRITE_COLKEY)
+        pyxel.blt(x, y, 0, nu + offset, nv + offset, size, size, SPRITE_COLKEY)
