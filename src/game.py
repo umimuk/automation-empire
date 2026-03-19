@@ -23,7 +23,7 @@ from src.constants import (
 
 # Sprite sheet layout: each sprite 64x64, colkey=8 (red)
 _SPRITE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "sprites.png")
-SPRITE_COLKEY = 8  # C_RED used as transparent color
+SPRITE_COLKEY = 0  # C_BLACK used as transparent color
 SPRITE_SZ = 64  # sprite size in pixels
 # agent_id -> (u, v) position in sprite sheet
 SPRITE_UV = {
