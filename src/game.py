@@ -117,11 +117,23 @@ class Game:
                 self.buttons["office_up"] = Button(16, 44, 208, 48, "")
         elif s == "monthly_report":
             self.buttons["cont"] = Button(40, 272, 160, 36, "次へ")
+            # Pre-compute naviko comment once
+            d = self.report_data
+            earnings = d.get("earnings", 0)
+            mishaps = d.get("mishaps", 0)
+            if earnings >= 2000:
+                self._scene_comment = random.choice(NAVIKO_MONTHLY_GREAT)
+            elif mishaps >= 2 or earnings < 500:
+                self._scene_comment = random.choice(NAVIKO_MONTHLY_BAD)
+            else:
+                self._scene_comment = random.choice(NAVIKO_MONTHLY_GOOD)
         elif s == "rankup":
             self.buttons["cont"] = Button(40, 272, 160, 36, "次へ")
+            self._scene_comment = random.choice(NAVIKO_RANKUP)
         elif s == "tax_event":
             for i in range(4):
                 self.buttons[f"tax{i}"] = Button(12, 136 + i * 44, 216, 40, "")
+            self._scene_comment = random.choice(NAVIKO_TAX)
 
     def _refresh_job_board(self):
         """Generate available jobs based on reputation rank."""
@@ -974,15 +986,7 @@ class Game:
         pyxel.circ(16, 212, 8, C_LAVENDER)
         pyxel.text(10, 209, "ナ", C_WHITE, self.font_s)
 
-        earnings = d.get("earnings", 0)
-        mishaps = d.get("mishaps", 0)
-        if earnings >= 2000:
-            comment = random.choice(NAVIKO_MONTHLY_GREAT)
-        elif mishaps >= 2 or earnings < 500:
-            comment = random.choice(NAVIKO_MONTHLY_BAD)
-        else:
-            comment = random.choice(NAVIKO_MONTHLY_GOOD)
-
+        comment = self._scene_comment
         lines = comment.split("\n")
         pyxel.text(32, 198, lines[0], C_WHITE, self.font_s)
         if len(lines) > 1:
@@ -1024,7 +1028,7 @@ class Game:
         pyxel.rectb(0, 190, WIDTH, 50, C_YELLOW)
         pyxel.circ(16, 212, 8, C_LAVENDER)
         pyxel.text(10, 209, "ナ", C_WHITE, self.font_s)
-        comment = random.choice(NAVIKO_RANKUP)
+        comment = self._scene_comment
         lines = comment.split("\n")
         pyxel.text(32, 198, lines[0], C_WHITE, self.font_s)
         if len(lines) > 1:
@@ -1048,7 +1052,7 @@ class Game:
         pyxel.rectb(0, 66, WIDTH, 44, C_DGRAY)
         pyxel.circ(16, 86, 8, C_LAVENDER)
         pyxel.text(10, 83, "ナ", C_WHITE, self.font_s)
-        comment = random.choice(NAVIKO_TAX)
+        comment = self._scene_comment
         lines = comment.split("\n")
         pyxel.text(32, 72, lines[0], C_WHITE, self.font_s)
         if len(lines) > 1:
@@ -1058,10 +1062,10 @@ class Game:
 
         # Tax choice buttons
         tax_labels = [
-            "自分で申告する（税率10%）",
-            "AIに任せる（ギャンブル）",
-            "税理士に依頼（税率15%）",
-            "放置する（追徴30%）",
+            "自分で申告する",
+            "AIに任せる",
+            "税理士に依頼する",
+            "放置する",
         ]
         for i in range(4):
             key = f"tax{i}"
