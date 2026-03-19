@@ -15,6 +15,7 @@ from src.constants import (
     NAVIKO_OVERLOAD, NAVIKO_DEFRAG, NAVIKO_IDLE,
     OFFICE_LEVELS, TAX_EVENT_CHOICES, TAX_AGENT_FAILS,
     NAVIKO_MONTHLY_GOOD, NAVIKO_MONTHLY_BAD, NAVIKO_MONTHLY_GREAT,
+    NAVIKO_MONTHLY_MISHAP0, NAVIKO_MONTHLY_MISHAP_FEW, NAVIKO_MONTHLY_MISHAP_MANY,
     NAVIKO_RANKUP, NAVIKO_TAX,
     SYNERGIES, TITLES, ENDINGS, GAME_LENGTH_WEEKS,
     NAVIKO_SYNERGY, NAVIKO_TITLE,
@@ -144,18 +145,18 @@ class Game:
             self.equip_scroll = 0
             self.buttons["back"] = Button(12, 430, 110, 40, "戻る")
             if self.office_level < len(OFFICE_LEVELS) - 1:
-                self.buttons["office_up"] = Button(20, 50, 230, 54, "")
+                self.buttons["office_up"] = Button(20, 46, 230, 54, "")
         elif s == "monthly_report":
             self.buttons["cont"] = Button(55, 420, 160, 40, "次へ")
             d = self.report_data
-            earnings = d.get("earnings", 0)
             mishaps = d.get("mishaps", 0)
-            if earnings >= 2000:
-                self._scene_comment = random.choice(NAVIKO_MONTHLY_GREAT)
-            elif mishaps >= 2 or earnings < 500:
-                self._scene_comment = random.choice(NAVIKO_MONTHLY_BAD)
+            # やらかし回数に応じてナビ子セリフを分岐
+            if mishaps == 0:
+                self._scene_comment = random.choice(NAVIKO_MONTHLY_MISHAP0)
+            elif mishaps <= 2:
+                self._scene_comment = random.choice(NAVIKO_MONTHLY_MISHAP_FEW)
             else:
-                self._scene_comment = random.choice(NAVIKO_MONTHLY_GOOD)
+                self._scene_comment = random.choice(NAVIKO_MONTHLY_MISHAP_MANY)
         elif s == "rankup":
             self.buttons["cont"] = Button(55, 420, 160, 40, "次へ")
             self._scene_comment = random.choice(NAVIKO_RANKUP)
@@ -498,7 +499,7 @@ class Game:
     def _visible_equips(self):
         """Get visible equipment list and create buttons."""
         has_office_btn = self.office_level < len(OFFICE_LEVELS) - 1
-        eq_y_start = 98 if has_office_btn else 44
+        eq_y_start = 110 if has_office_btn else 44
         max_visible = 3 if has_office_btn else 4
 
         visible = []
@@ -517,7 +518,7 @@ class Game:
         if office_btn:
             self.buttons["office_up"] = office_btn
         for i, eq in enumerate(visible):
-            self.buttons[f"eq{i}"] = Button(16, eq_y_start + i * 54, 208, 48, "")
+            self.buttons[f"eq{i}"] = Button(16, eq_y_start + i * 64, 208, 56, "")
         return visible
 
     # ── Turn logic ──
@@ -814,9 +815,12 @@ class Game:
             # Stat growth on level up
             strength_stat = AI_STRENGTH.get(agent["id"])
             for stat in agent["stats"]:
-                growth = random.randint(0, 1)
                 if stat == strength_stat:
-                    growth += 1
+                    growth = 2  # 適性ステータス
+                elif stat == "体力":
+                    growth = 1  # 体力は固定+1
+                else:
+                    growth = 1  # その他ステータス
                 agent["stats"][stat] = min(10, agent["stats"][stat] + growth)
             self.turn_log.append("")
             self.turn_log.append(f"★ Lv.{agent['level']}にアップ！")
@@ -1515,13 +1519,13 @@ class Game:
                 pyxel.text(btn.x + 8, btn.y + 36, "事務所拡張", C_YELLOW, self.font_s)
 
         # Equipment list
-        eq_y_start = 98 if has_office_btn else 44
+        eq_y_start = 110 if has_office_btn else 44
         visible = self._visible_equips()
         if not visible and not has_office_btn:
             text_centered(140, "設備がありません", C_DGRAY, self.font_s)
         else:
             for i, eq in enumerate(visible):
-                y = eq_y_start + i * 54
+                y = eq_y_start + i * 64
                 owned = eq["name"] in self.owned_equip
                 can_buy = self.coins >= eq["cost"] and not owned
 
@@ -1535,23 +1539,24 @@ class Game:
                     bg_col = C_NAVY
                     border_col = C_DGRAY
 
-                draw_panel(16, y, 208, 48, bg_col, border_col)
-                pyxel.text(24, y + 6, eq["name"], C_WHITE, self.font_s)
-                pyxel.text(24, y + 22, eq["desc"], C_GRAY, self.font_s)
+                draw_panel(16, y, 208, 56, bg_col, border_col)
+                pyxel.text(24, y + 8, eq["name"], C_WHITE, self.font_s)
+                pyxel.text(24, y + 28, eq["desc"], C_GRAY, self.font_s)
 
                 if owned:
-                    pyxel.text(160, y + 6, "購入済", C_GRAY, self.font_s)
+                    pyxel.text(160, y + 8, "購入済", C_GRAY, self.font_s)
                 else:
                     cost_col = C_GREEN if can_buy else C_RED
-                    pyxel.text(150, y + 6, f"{eq['cost']}G", cost_col, self.font_s)
+                    pyxel.text(150, y + 8, f"{eq['cost']}G", cost_col, self.font_s)
 
         # Scroll buttons
         if self.equip_scroll > 0:
-            self.buttons["scroll_up"] = Button(120, eq_y_start - 10, 100, 20, "▲ 上へ")
+            self.buttons["scroll_up"] = Button(120, eq_y_start - 14, 100, 20, "▲ 上へ")
             self.buttons["scroll_up"].draw(self.font_s, C_DGRAY, C_GRAY, C_GRAY)
         max_visible = 3 if has_office_btn else 4
+        scroll_down_y = eq_y_start + max_visible * 64 + 4
         if self.equip_scroll + max_visible < len(EQUIPMENTS):
-            self.buttons["scroll_down"] = Button(120, 260, 100, 20, "▼ 下へ")
+            self.buttons["scroll_down"] = Button(120, scroll_down_y, 100, 20, "▼ 下へ")
             self.buttons["scroll_down"].draw(self.font_s, C_DGRAY, C_GRAY, C_GRAY)
 
         self.buttons["back"].draw(self.font_s, C_DGRAY, C_WHITE, C_GRAY)
