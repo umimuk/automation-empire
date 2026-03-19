@@ -14,8 +14,9 @@ from src.constants import (
     AI_WEAKNESS, AI_STRENGTH,
     NAVIKO_OVERLOAD, NAVIKO_DEFRAG, NAVIKO_IDLE,
     OFFICE_LEVELS, TAX_EVENT_CHOICES, TAX_AGENT_FAILS,
-    NAVIKO_MONTHLY_GOOD, NAVIKO_MONTHLY_BAD, NAVIKO_MONTHLY_GREAT,
-    NAVIKO_MONTHLY_MISHAP0, NAVIKO_MONTHLY_MISHAP_FEW, NAVIKO_MONTHLY_MISHAP_MANY,
+    NAVIKO_MONTHLY_REVENUE_UP, NAVIKO_MONTHLY_REVENUE_DOWN,
+    NAVIKO_MONTHLY_MISHAP_MANY, NAVIKO_MONTHLY_MISHAP0,
+    NAVIKO_MONTHLY_RANKUP, NAVIKO_MONTHLY_BROKE, NAVIKO_MONTHLY_DEFAULT,
     NAVIKO_RANKUP, NAVIKO_TAX,
     SYNERGIES, TITLES, ENDINGS, GAME_LENGTH_WEEKS,
     NAVIKO_SYNERGY, NAVIKO_TITLE,
@@ -80,6 +81,7 @@ class Game:
 
         # Phase 4: Monthly tracking
         self.month_earnings = 0
+        self.prev_month_earnings = 0
         self.month_mishaps = 0
         self.year_earnings = 0
 
@@ -151,14 +153,25 @@ class Game:
         elif s == "monthly_report":
             self.buttons["cont"] = Button(55, 420, 160, 40, "次へ")
             d = self.report_data
+            earnings = d.get("earnings", 0)
+            prev_earnings = d.get("prev_earnings", 0)
             mishaps = d.get("mishaps", 0)
-            # やらかし回数に応じてナビ子セリフを分岐
-            if mishaps == 0:
-                self._scene_comment = random.choice(NAVIKO_MONTHLY_MISHAP0)
-            elif mishaps <= 2:
-                self._scene_comment = random.choice(NAVIKO_MONTHLY_MISHAP_FEW)
-            else:
+            rankup = d.get("rankup", False)
+            # 優先順位で判定し最初に当てはまったセリフを表示
+            if prev_earnings > 0 and earnings >= prev_earnings * 1.5:
+                self._scene_comment = random.choice(NAVIKO_MONTHLY_REVENUE_UP)
+            elif prev_earnings > 0 and earnings < prev_earnings:
+                self._scene_comment = random.choice(NAVIKO_MONTHLY_REVENUE_DOWN)
+            elif mishaps >= 3:
                 self._scene_comment = random.choice(NAVIKO_MONTHLY_MISHAP_MANY)
+            elif mishaps == 0:
+                self._scene_comment = random.choice(NAVIKO_MONTHLY_MISHAP0)
+            elif rankup:
+                self._scene_comment = random.choice(NAVIKO_MONTHLY_RANKUP)
+            elif self.coins <= 100:
+                self._scene_comment = random.choice(NAVIKO_MONTHLY_BROKE)
+            else:
+                self._scene_comment = random.choice(NAVIKO_MONTHLY_DEFAULT)
         elif s == "rankup":
             self.buttons["cont"] = Button(55, 420, 160, 40, "次へ")
             self._scene_comment = random.choice(NAVIKO_RANKUP)
@@ -215,16 +228,21 @@ class Game:
         prev_week = self.week - 1  # the week that just completed
         if prev_week > 0 and prev_week % 4 == 0:
             yr, mo, _ = self._week_to_date(prev_week)
+            # rankup判定: pending_scenesに"rankup"が含まれていれば今月ランクアップした
+            month_rankup = "rankup" in self.pending_scenes
             self.report_data = {
                 "month": mo,
                 "year": yr,
                 "earnings": self.month_earnings,
+                "prev_earnings": self.prev_month_earnings,
                 "mishaps": self.month_mishaps,
                 "rank": REP_RANKS[self.rep_rank],
                 "level": self.agents[0]["level"] if self.agents else 1,
+                "rankup": month_rankup,
             }
             self.pending_scenes.append("monthly_report")
             # Reset monthly tracking
+            self.prev_month_earnings = self.month_earnings
             self.month_earnings = 0
             self.month_mishaps = 0
 
@@ -924,6 +942,7 @@ class Game:
         self.job_scroll = 0
         self.equip_scroll = 0
         self.month_earnings = 0
+        self.prev_month_earnings = 0
         self.month_mishaps = 0
         self.year_earnings = 0
         self.pending_scenes = []

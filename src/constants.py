@@ -355,37 +355,33 @@ TAX_AGENT_FAILS = {
 }
 
 # ── Phase 4: Monthly report ──
-NAVIKO_MONTHLY_GOOD = [
-    "いい月だったね。この調子。",
-    "順調だよ。悪くない。",
-    "黒字でなにより。",
+# 条件別ナビ子セリフ（優先順位順に判定）
+NAVIKO_MONTHLY_REVENUE_UP = [
+    "めっちゃ伸びてるじゃん。",
+    "この調子この調子。",
 ]
-NAVIKO_MONTHLY_BAD = [
-    "微妙な月だったね…",
-    "やらかし多くない？",
-    "来月は頑張ろ。",
-]
-NAVIKO_MONTHLY_GREAT = [
-    "すごい月！やるじゃん！",
-    "大黒字！帝国への道だね。",
-    "ボス、才能あるかも？",
-]
-
-# やらかし回数別のナビ子セリフ（月次レポート）
-NAVIKO_MONTHLY_MISHAP0 = [
-    "やらかしゼロとか優秀じゃん。",
-    "平和な月だったね。",
-    "ノーミスは素直にすごい。",
-]
-NAVIKO_MONTHLY_MISHAP_FEW = [
-    "まぁこんなもんでしょ。",
-    "多少のやらかしは想定内。",
-    "まぁ許容範囲かな。",
+NAVIKO_MONTHLY_REVENUE_DOWN = [
+    "先月より減ってるけど大丈夫？",
+    "ちょっと失速気味？",
 ]
 NAVIKO_MONTHLY_MISHAP_MANY = [
     "やらかし多くない？",
-    "大丈夫？ちょっと心配。",
-    "やらかしすぎじゃない…？",
+    "落ち着いて行こ？",
+]
+NAVIKO_MONTHLY_MISHAP0 = [
+    "平和な月だったね。",
+    "やらかしゼロは偉い。",
+]
+NAVIKO_MONTHLY_RANKUP = [
+    "評判上がったじゃん。",
+]
+NAVIKO_MONTHLY_BROKE = [
+    "金欠やばくない？",
+    "節約しよ…",
+]
+NAVIKO_MONTHLY_DEFAULT = [
+    "まぁぼちぼちだね。",
+    "順調順調。",
 ]
 
 # ── Phase 4: Rank up ──
