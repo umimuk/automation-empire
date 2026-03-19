@@ -32,6 +32,8 @@ SPRITE_UV = {
     "hattari": (128, 0),
     "nabiko": (192, 0),
 }
+NAVIKO_ICON_UV = (0, 64)  # 32x32 pre-rendered nabiko icon
+NAVIKO_ICON_SZ = 32
 from src.ui import Button, text_centered, draw_panel
 
 
@@ -1011,11 +1013,11 @@ class Game:
         nav_y = 236
         pyxel.rect(0, nav_y, WIDTH, 38, C_NAVY)
         pyxel.rectb(0, nav_y, WIDTH, 38, C_DGRAY)
-        self._draw_naviko_icon(1, nav_y + 3, 32)
+        self._draw_naviko_icon(2, nav_y + 3)
         naviko = end.get("naviko", "")
         lines = naviko.split("\n")
         for i, line in enumerate(lines[:3]):
-            pyxel.text(32, nav_y + 4 + i * 12, line, C_WHITE, self.font_s)
+            pyxel.text(42, nav_y + 4 + i * 12, line, C_WHITE, self.font_s)
 
         # Restart button
         self.buttons["restart"].draw(self.font, C_DGREEN, C_WHITE, C_GREEN)
@@ -1136,9 +1138,9 @@ class Game:
         # Naviko message area
         pyxel.rect(0, 268, WIDTH, 60, C_BLACK)
         pyxel.rectb(0, 268, WIDTH, 60, C_DGRAY)
-        self._draw_naviko_icon(2, 282, 32)
+        self._draw_naviko_icon(2, 282)
         for i, line in enumerate(self.naviko_msg.split("\n")):
-            pyxel.text(44, 276 + i * 16, line, C_WHITE, self.font_s)
+            pyxel.text(42, 276 + i * 16, line, C_WHITE, self.font_s)
 
         # Bottom buttons
         for key in ("jobs", "ai", "equip"):
@@ -1198,8 +1200,8 @@ class Game:
         msg_idx = (frame // 30) % len(naviko_msgs)
         pyxel.rect(0, 380, WIDTH, 50, C_NAVY)
         pyxel.rectb(0, 380, WIDTH, 50, C_DGRAY)
-        self._draw_naviko_icon(2, 389, 32)
-        pyxel.text(34, 396, naviko_msgs[msg_idx], C_WHITE, self.font_s)
+        self._draw_naviko_icon(2, 389)
+        pyxel.text(42, 396, naviko_msgs[msg_idx], C_WHITE, self.font_s)
 
     def draw_result(self):
         pyxel.cls(C_BLACK)
@@ -1257,13 +1259,13 @@ class Game:
         # Naviko comment area
         pyxel.rect(0, 96, WIDTH, 56, C_NAVY)
         pyxel.rectb(0, 96, WIDTH, 56, C_DGRAY)
-        self._draw_naviko_icon(2, 104, 32)
+        self._draw_naviko_icon(2, 108)
         msg_lines = self.naviko_msg.split("\n") if self.naviko_msg else ["..."]
-        pyxel.text(34, 104, msg_lines[0], C_WHITE, self.font_s)
+        pyxel.text(42, 104, msg_lines[0], C_WHITE, self.font_s)
         if len(msg_lines) > 1:
-            pyxel.text(34, 120, msg_lines[1], C_WHITE, self.font_s)
+            pyxel.text(42, 120, msg_lines[1], C_WHITE, self.font_s)
         if len(msg_lines) > 2:
-            pyxel.text(34, 136, msg_lines[2], C_WHITE, self.font_s)
+            pyxel.text(42, 136, msg_lines[2], C_WHITE, self.font_s)
 
         # Choice buttons
         if self.mishap_event:
@@ -1311,15 +1313,15 @@ class Game:
         # Naviko comment
         pyxel.rect(0, 300, WIDTH, 60, C_NAVY)
         pyxel.rectb(0, 300, WIDTH, 60, C_DGRAY)
-        self._draw_naviko_icon(2, 310, 32)
+        self._draw_naviko_icon(2, 314)
 
         comment = self._scene_comment
         lines = comment.split("\n")
-        pyxel.text(34, 308, lines[0], C_WHITE, self.font_s)
+        pyxel.text(42, 308, lines[0], C_WHITE, self.font_s)
         if len(lines) > 1:
-            pyxel.text(34, 324, lines[1], C_WHITE, self.font_s)
+            pyxel.text(42, 324, lines[1], C_WHITE, self.font_s)
         if len(lines) > 2:
-            pyxel.text(34, 340, lines[2], C_WHITE, self.font_s)
+            pyxel.text(42, 340, lines[2], C_WHITE, self.font_s)
 
         self.buttons["cont"].draw(self.font, C_DGRAY, C_WHITE, C_GRAY)
 
@@ -1353,12 +1355,12 @@ class Game:
         # Naviko comment
         pyxel.rect(0, 190, WIDTH, 50, C_NAVY)
         pyxel.rectb(0, 190, WIDTH, 50, C_YELLOW)
-        self._draw_naviko_icon(1, 199, 32)
+        self._draw_naviko_icon(2, 199)
         comment = self._scene_comment
         lines = comment.split("\n")
-        pyxel.text(32, 198, lines[0], C_WHITE, self.font_s)
+        pyxel.text(42, 198, lines[0], C_WHITE, self.font_s)
         if len(lines) > 1:
-            pyxel.text(32, 212, lines[1], C_WHITE, self.font_s)
+            pyxel.text(42, 212, lines[1], C_WHITE, self.font_s)
 
         self.buttons["cont"].draw(self.font, C_DGRAY, C_WHITE, C_GRAY)
 
@@ -1376,14 +1378,14 @@ class Game:
         # Naviko comment
         pyxel.rect(0, 66, WIDTH, 44, C_NAVY)
         pyxel.rectb(0, 66, WIDTH, 44, C_DGRAY)
-        self._draw_naviko_icon(1, 73, 32)
+        self._draw_naviko_icon(2, 72)
         comment = self._scene_comment
         lines = comment.split("\n")
-        pyxel.text(32, 72, lines[0], C_WHITE, self.font_s)
+        pyxel.text(42, 72, lines[0], C_WHITE, self.font_s)
         if len(lines) > 1:
-            pyxel.text(32, 86, lines[1], C_WHITE, self.font_s)
+            pyxel.text(42, 86, lines[1], C_WHITE, self.font_s)
         if len(lines) > 2:
-            pyxel.text(32, 100, lines[2], C_WHITE, self.font_s)
+            pyxel.text(42, 100, lines[2], C_WHITE, self.font_s)
 
         # Tax choice buttons
         tax_labels = [
@@ -1581,8 +1583,7 @@ class Game:
         else:
             pyxel.circ(cx, cy, 28, col)
 
-    def _draw_naviko_icon(self, x, y, size=32):
-        """Draw nabiko face icon for comment panels (center-cropped from 64x64)."""
-        nu, nv = SPRITE_UV["nabiko"]
-        offset = (SPRITE_SZ - size) // 2
-        pyxel.blt(x, y, 0, nu + offset, nv + offset, size, size, SPRITE_COLKEY)
+    def _draw_naviko_icon(self, x, y):
+        """Draw 32x32 nabiko icon from pre-rendered sprite."""
+        nu, nv = NAVIKO_ICON_UV
+        pyxel.blt(x, y, 0, nu, nv, NAVIKO_ICON_SZ, NAVIKO_ICON_SZ, SPRITE_COLKEY)

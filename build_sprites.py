@@ -3,7 +3,7 @@
 
 Usage: python3 build_sprites.py
 Input:  assets/originals/{poemu,bagumaru,hattari,nabiko}.png (1024x1024 RGBA)
-Output: assets/sprites.png (256x64, 4 chars @ 64x64, Pyxel 16-color palette)
+Output: assets/sprites.png (256x96, 4 chars @ 64x64 + nabiko 32x32 icon)
 """
 
 import os
@@ -141,13 +141,50 @@ def process_character(filepath):
     return result
 
 
+def process_character_small(filepath, size=32):
+    """Process a character image into a small icon (e.g. 32x32)."""
+    img = Image.open(filepath).convert("RGBA")
+    w, h = img.size
+
+    crop_w = w - WATERMARK_CROP
+    crop_h = h - WATERMARK_CROP
+    img = img.crop((0, 0, crop_w, crop_h))
+
+    bbox = find_character_bbox(img)
+    char_img = img.crop(bbox)
+
+    cw, ch = char_img.size
+    max_dim = max(cw, ch)
+    square = Image.new("RGBA", (max_dim, max_dim), (0, 0, 0, 0))
+    offset_x = (max_dim - cw) // 2
+    offset_y = (max_dim - ch) // 2
+    square.paste(char_img, (offset_x, offset_y))
+
+    resized = square.resize((size, size), Image.LANCZOS)
+
+    result = Image.new("RGB", (size, size))
+    src_pixels = resized.load()
+    dst_pixels = result.load()
+
+    for y in range(size):
+        for x in range(size):
+            r, g, b, a = src_pixels[x, y]
+            if a < 80 or (r + g + b < 50):
+                dst_pixels[x, y] = PYXEL_PALETTE[COLKEY]
+            else:
+                idx = nearest_palette_color(r, g, b)
+                dst_pixels[x, y] = PYXEL_PALETTE[idx]
+
+    return result
+
+
 def main():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     orig_dir = os.path.join(base_dir, "assets", "originals")
     out_path = os.path.join(base_dir, "assets", "sprites.png")
 
-    # Create sprite sheet (256x64)
-    sheet = Image.new("RGB", (256, SPRITE_SIZE),
+    # Create sprite sheet (256x96: row 0 = 4x64x64, row 1 = small icons)
+    sheet = Image.new("RGB", (256, SPRITE_SIZE + 32),
                       PYXEL_PALETTE[COLKEY])  # fill with colkey
 
     for i, filename in enumerate(CHARACTERS):
@@ -160,6 +197,14 @@ def main():
         sprite = process_character(filepath)
         sheet.paste(sprite, (i * SPRITE_SIZE, 0))
         print(f"  → slot {i} ({i * SPRITE_SIZE},0)")
+
+    # Generate nabiko 32x32 icon at (0, 64)
+    nabiko_path = os.path.join(orig_dir, "nabiko.png")
+    if os.path.exists(nabiko_path):
+        print("Processing nabiko 32x32 icon...")
+        icon = process_character_small(nabiko_path, 32)
+        sheet.paste(icon, (0, SPRITE_SIZE))
+        print(f"  → icon at (0,{SPRITE_SIZE})")
 
     sheet.save(out_path)
     print(f"\nSprite sheet saved: {out_path}")
