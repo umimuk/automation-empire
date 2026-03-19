@@ -11,7 +11,7 @@ echo "=== 自動化帝国 ビルド ==="
 
 # 1. pyxapp をパッケージ
 echo "[1/4] pyxapp パッケージング..."
-pyxel package . src/game.py
+pyxel package . main.py
 
 # 2. HTML 生成
 echo "[2/4] HTML 生成..."
