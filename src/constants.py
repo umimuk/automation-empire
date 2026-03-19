@@ -3,9 +3,9 @@ import os
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Screen
-WIDTH = 240
-HEIGHT = 320
+# Screen (9:16 aspect ratio for smartphone)
+WIDTH = 270
+HEIGHT = 480
 
 # Colors (Pyxel 16-color palette)
 C_BLACK = 0
@@ -83,7 +83,30 @@ JOBS_LV2_BIZ = [
     {"name": "プロンプト販売", "pay": 350, "diff": "★★☆", "stat": "営業", "threshold": 6, "rank": 2},
 ]
 
-ALL_JOBS = JOBS_LV1 + JOBS_LV2_CREATOR + JOBS_LV2_TECH + JOBS_LV2_BIZ
+# ── Phase 5: Higher-tier Jobs ──
+JOBS_LV3_CREATOR = [
+    {"name": "YouTube動画制作", "pay": 900, "diff": "★★★", "stat": "創造", "threshold": 7, "rank": 2},
+    {"name": "電子書籍出版", "pay": 800, "diff": "★★★", "stat": "創造", "threshold": 6, "rank": 2},
+]
+JOBS_LV3_TECH = [
+    {"name": "ブラウザゲーム開発", "pay": 1000, "diff": "★★★", "stat": "技術", "threshold": 7, "rank": 2},
+    {"name": "アプリ開発", "pay": 950, "diff": "★★★", "stat": "技術", "threshold": 6, "rank": 2},
+]
+JOBS_LV3_BIZ = [
+    {"name": "note有料記事", "pay": 750, "diff": "★★★", "stat": "営業", "threshold": 6, "rank": 2},
+    {"name": "占い・診断サービス", "pay": 700, "diff": "★★★", "stat": "営業", "threshold": 7, "rank": 3},
+]
+JOBS_LV4 = [
+    {"name": "ツール開発・SaaS", "pay": 1500, "diff": "★★★★", "stat": "技術", "threshold": 8, "rank": 3},
+    {"name": "オンライン講座", "pay": 1300, "diff": "★★★★", "stat": "営業", "threshold": 8, "rank": 3},
+]
+JOBS_LV5 = [
+    {"name": "AI組織運営", "pay": 2500, "diff": "★★★★★", "stat": None, "threshold": 0, "rank": 4},
+]
+
+ALL_JOBS = (JOBS_LV1 + JOBS_LV2_CREATOR + JOBS_LV2_TECH + JOBS_LV2_BIZ
+            + JOBS_LV3_CREATOR + JOBS_LV3_TECH + JOBS_LV3_BIZ
+            + JOBS_LV4 + JOBS_LV5)
 
 # ── Equipment definitions ──
 # effect: "bonus" = % revenue up for stat, "fatigue_reduce" = fatigue per turn reduced,
@@ -359,4 +382,72 @@ NAVIKO_TAX = [
     "確定申告の季節だよ。\nどう対応する？",
     "税金の時間。副業の宿命だね。",
     "申告しないと追徴課税だからね？",
+]
+
+# ── Phase 5: Synergy Bonuses ──
+SYNERGIES = [
+    {"jobs": ["ブログ記事執筆", "アフィリエイト運営"], "name": "ブロガー覚醒", "bonus": 30, "desc": "収益+30%"},
+    {"jobs": ["AI画像生成・販売", "ショート動画制作"], "name": "ビジュアル爆撃", "bonus": 25, "desc": "収益+25%"},
+    {"jobs": ["Bot開発", "SNS運用代行"], "name": "自動化コンボ", "bonus": 30, "desc": "収益+30%"},
+    {"jobs": ["ブラウザゲーム開発", "YouTube動画制作"], "name": "実況セルフプロモ", "bonus": 25, "desc": "収益+25%"},
+    {"jobs": ["note有料記事", "オンライン講座"], "name": "知識マネタイザー", "bonus": 30, "desc": "収益+30%"},
+    {"jobs": ["占い・診断サービス", "プロンプト販売"], "name": "神秘のAI商人", "bonus": 20, "desc": "収益+20%"},
+]
+
+# ── Phase 5: Hidden Titles ──
+TITLES = [
+    {"id": "loose_ceo", "name": "放任主義CEO", "desc": "やらかし10回連続"},
+    {"id": "emperor", "name": "自動化帝王", "desc": "全副業を制覇"},
+    {"id": "legend", "name": "レジェンド経営者", "desc": "評判Sランクに到達"},
+    {"id": "neet", "name": "不労所得マスター", "desc": "10週連続サボって生存"},
+    {"id": "careful", "name": "石橋慎重経営", "desc": "やらかしゼロでLv10到達"},
+    {"id": "rich", "name": "札束で殴る経営", "desc": "所持金10万G到達"},
+    {"id": "perfectionist", "name": "完璧主義者", "desc": "やらかし0回でクリア"},
+]
+
+# ── Phase 5: Game length ──
+GAME_LENGTH_WEEKS = 144  # 3 years
+
+# ── Phase 5: Ending definitions ──
+ENDINGS = [
+    {
+        "id": "empire",
+        "name": "帝国完成",
+        "naviko": "やるじゃん、ボス。\n本当に帝国作っちゃったね。\n…私がいたからだけど。",
+        "desc": "AI副業事務所は\n「自動化帝国」として\n業界の頂点に立った。",
+    },
+    {
+        "id": "rebellion",
+        "name": "AI反乱",
+        "naviko": "ついにAIが反乱。\nあなた、逆に経営される\n側になっちゃったよ。",
+        "desc": "やらかしが限界を超え\nAIが独立宣言。\n逆に雇われる側に。",
+    },
+    {
+        "id": "stable",
+        "name": "中堅事務所",
+        "naviko": "まあまあかな。\n安定経営ってやつだね。\nまだまだ伸びしろあるよ。",
+        "desc": "安定した副業事務所。\n大きくはないけど\n「まだまだこれから」。",
+    },
+    {
+        "id": "small",
+        "name": "零細事務所",
+        "naviko": "…ボス、大丈夫？\nAIに逃げられかけたよ。\nでも諦めなかったのは偉い。",
+        "desc": "零細副業事務所。\nAIに逃げられかけたけど\nあなたはまだ諦めない。",
+    },
+    {
+        "id": "default",
+        "name": "普通エンド",
+        "naviko": "3年間お疲れ。\nまあ、悪くなかったよ。\n…たぶん。",
+        "desc": "3年間の副業経営が終了。\n経験値はプライスレス。",
+    },
+]
+
+NAVIKO_SYNERGY = [
+    "シナジー発動！\n組み合わせが効いてる！",
+    "コンボ発見！\n相乗効果で収益UP！",
+]
+
+NAVIKO_TITLE = [
+    "おっ、称号獲得！\nやるじゃん。",
+    "新しい称号だよ。\nコレクション増えたね。",
 ]

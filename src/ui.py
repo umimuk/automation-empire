@@ -32,9 +32,10 @@ class Button:
 
 
 def text_centered(y, text, col, font):
-    """Draw text horizontally centered on screen (240px wide)."""
+    """Draw text horizontally centered on screen."""
+    from src.constants import WIDTH
     tw = font.text_width(text)
-    pyxel.text(120 - tw // 2, y, text, col, font)
+    pyxel.text(WIDTH // 2 - tw // 2, y, text, col, font)
 
 
 def draw_panel(x, y, w, h, col_bg=1, col_border=5):

@@ -1,7 +1,9 @@
-"""Main game logic for 自動化帝国 (Phase 4)."""
+"""Main game logic for 自動化帝国 (Phase 5)."""
 
 import pyxel
 import random
+
+import os
 
 from src.constants import (
     WIDTH, HEIGHT, FONT_MAIN, FONT_SMALL,
@@ -14,7 +16,20 @@ from src.constants import (
     OFFICE_LEVELS, TAX_EVENT_CHOICES, TAX_AGENT_FAILS,
     NAVIKO_MONTHLY_GOOD, NAVIKO_MONTHLY_BAD, NAVIKO_MONTHLY_GREAT,
     NAVIKO_RANKUP, NAVIKO_TAX,
+    SYNERGIES, TITLES, ENDINGS, GAME_LENGTH_WEEKS,
+    NAVIKO_SYNERGY, NAVIKO_TITLE,
 )
+
+# Sprite sheet layout: each sprite 32x32, colkey=8 (red)
+_SPRITE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "sprites.png")
+SPRITE_COLKEY = 8  # C_RED used as transparent color
+# agent_id -> (u, v) position in sprite sheet
+SPRITE_UV = {
+    "poem": (0, 0),
+    "bugmaru": (32, 0),
+    "hattari": (64, 0),
+    "nabiko": (96, 0),
+}
 from src.ui import Button, text_centered, draw_panel
 
 
@@ -26,6 +41,9 @@ class Game:
         # Fonts
         self.font = pyxel.Font(FONT_MAIN)
         self.font_s = pyxel.Font(FONT_SMALL)
+
+        # Load sprite sheet into image bank 0
+        pyxel.images[0].load(0, 0, _SPRITE_FILE)
 
         # Scene
         self.scene = "title"
@@ -72,6 +90,18 @@ class Game:
         # Phase 4: Tax event
         self.tax_year_income = 0
 
+        # Phase 5: Achievement tracking
+        self.total_mishaps = 0
+        self.consecutive_mishaps = 0
+        self.consecutive_idles = 0
+        self.completed_jobs = set()
+        self.earned_titles = []
+        self.active_synergies = []
+        self.total_earnings = 0
+        self._scene_comment = ""
+        self.ending_data = None
+        self.work_timer = 0
+
         self._setup_scene()
         pyxel.run(self.update, self.draw)
 
@@ -86,38 +116,36 @@ class Game:
         s = self.scene
         if s == "select":
             for i in range(3):
-                self.buttons[f"c{i}"] = Button(20, 50 + i * 85, 200, 75, "")
+                self.buttons[f"c{i}"] = Button(20, 60 + i * 120, 230, 100, "")
         elif s == "naming":
-            self.buttons["rand"] = Button(40, 224, 160, 36, "ランダム生成")
-            self.buttons["ok"] = Button(40, 272, 160, 36, "決定")
+            self.buttons["rand"] = Button(55, 340, 160, 40, "ランダム生成")
+            self.buttons["ok"] = Button(55, 400, 160, 40, "決定")
         elif s == "office":
-            bw, bh = 108, 44
-            self.buttons["jobs"] = Button(8, 216, bw, bh, "案件ボード")
-            self.buttons["ai"] = Button(124, 216, bw, bh, "AI管理")
-            self.buttons["equip"] = Button(8, 268, bw, bh, "設備")
-            self.buttons["next"] = Button(124, 268, bw, bh, "進む")
+            bw, bh = 120, 50
+            self.buttons["jobs"] = Button(12, 350, bw, bh, "案件ボード")
+            self.buttons["ai"] = Button(138, 350, bw, bh, "AI管理")
+            self.buttons["equip"] = Button(12, 410, bw, bh, "設備")
+            self.buttons["next"] = Button(138, 410, bw, bh, "進む")
+        elif s == "working":
+            self.work_timer = 0
         elif s == "result":
-            self.buttons["cont"] = Button(40, 272, 160, 36, "次へ")
+            self.buttons["cont"] = Button(55, 420, 160, 40, "次へ")
         elif s == "mishap":
-            # Mishap choice screen - 4 choice buttons
             for i in range(4):
-                self.buttons[f"ch{i}"] = Button(12, 126 + i * 44, 216, 40, "")
+                self.buttons[f"ch{i}"] = Button(16, 180 + i * 60, 238, 52, "")
         elif s == "ai_detail":
-            self.buttons["defrag"] = Button(40, 236, 160, 32, "デフラグ")
-            self.buttons["back"] = Button(40, 276, 160, 36, "戻る")
+            self.buttons["defrag"] = Button(55, 380, 160, 36, "デフラグ")
+            self.buttons["back"] = Button(55, 430, 160, 40, "戻る")
         elif s == "job_board":
             self._refresh_job_board()
-            # Job buttons are created in _refresh_job_board
-            self.buttons["back"] = Button(8, 276, 100, 36, "戻る")
+            self.buttons["back"] = Button(12, 430, 110, 40, "戻る")
         elif s == "equip_shop":
             self.equip_scroll = 0
-            self.buttons["back"] = Button(8, 276, 100, 36, "戻る")
-            # Phase 4: Office upgrade button
+            self.buttons["back"] = Button(12, 430, 110, 40, "戻る")
             if self.office_level < len(OFFICE_LEVELS) - 1:
-                self.buttons["office_up"] = Button(16, 44, 208, 48, "")
+                self.buttons["office_up"] = Button(20, 50, 230, 54, "")
         elif s == "monthly_report":
-            self.buttons["cont"] = Button(40, 272, 160, 36, "次へ")
-            # Pre-compute naviko comment once
+            self.buttons["cont"] = Button(55, 420, 160, 40, "次へ")
             d = self.report_data
             earnings = d.get("earnings", 0)
             mishaps = d.get("mishaps", 0)
@@ -128,12 +156,22 @@ class Game:
             else:
                 self._scene_comment = random.choice(NAVIKO_MONTHLY_GOOD)
         elif s == "rankup":
-            self.buttons["cont"] = Button(40, 272, 160, 36, "次へ")
+            self.buttons["cont"] = Button(55, 420, 160, 40, "次へ")
             self._scene_comment = random.choice(NAVIKO_RANKUP)
         elif s == "tax_event":
             for i in range(4):
-                self.buttons[f"tax{i}"] = Button(12, 136 + i * 44, 216, 40, "")
+                self.buttons[f"tax{i}"] = Button(16, 180 + i * 60, 238, 52, "")
             self._scene_comment = random.choice(NAVIKO_TAX)
+        elif s == "ending":
+            self.buttons["restart"] = Button(55, 430, 160, 40, "もう一度遊ぶ")
+            self.ending_data = self._determine_ending()
+            if self.total_mishaps == 0:
+                earned_ids = {t["id"] for t in self.earned_titles}
+                if "perfectionist" not in earned_ids:
+                    for t in TITLES:
+                        if t["id"] == "perfectionist":
+                            self.earned_titles.append(t)
+                            break
 
     def _refresh_job_board(self):
         """Generate available jobs based on reputation rank."""
@@ -143,9 +181,9 @@ class Game:
                 self.available_jobs.append(job)
         self.selected_job = None
         self.job_scroll = 0
-        # Create job slot buttons (max 4 visible)
-        for i in range(min(len(self.available_jobs), 4)):
-            self.buttons[f"job{i}"] = Button(16, 44 + i * 54, 208, 48, "")
+        # Create job slot buttons (max 5 visible)
+        for i in range(min(len(self.available_jobs), 5)):
+            self.buttons[f"job{i}"] = Button(20, 54 + i * 66, 230, 58, "")
 
     # ── Scene transition helper ──
 
@@ -192,6 +230,10 @@ class Game:
             self.tax_year_income = self.year_earnings
             self.year_earnings = 0
             self.pending_scenes.append("tax_event")
+
+        # Phase 5: Game end (3 years = 144 weeks)
+        if self.week > GAME_LENGTH_WEEKS:
+            self.pending_scenes.append("ending")
 
     # ── Update dispatch ──
 
@@ -242,7 +284,8 @@ class Game:
 
     def update_office(self):
         if self.buttons["next"].clicked():
-            self._do_turn()
+            # Transition to working animation before processing turn
+            self.change_scene("working")
             return
         if self.buttons["ai"].clicked():
             self.change_scene("ai_detail")
@@ -253,6 +296,16 @@ class Game:
         if self.buttons["equip"].clicked():
             self.change_scene("equip_shop")
             return
+
+    def update_working(self):
+        """Working animation - auto-advance after ~90 frames (3 seconds)."""
+        self.work_timer += 1
+        if self.work_timer >= 90:
+            if getattr(self, '_is_defragging', False):
+                self._is_defragging = False
+                self._do_defrag()
+            else:
+                self._do_turn()
 
     def update_result(self):
         if self.buttons["cont"].clicked():
@@ -360,7 +413,8 @@ class Game:
 
     def update_ai_detail(self):
         if self.buttons["defrag"].clicked():
-            self._do_defrag()
+            self._is_defragging = True
+            self.change_scene("working")
             return
         if self.buttons["back"].clicked():
             self.change_scene("office")
@@ -494,6 +548,10 @@ class Game:
         self.naviko_msg = random.choice(NAVIKO_DEFRAG)
         self.week += 1
         self.mishap_event = None
+        # Phase 5: Defrag resets streaks
+        self.consecutive_mishaps = 0
+        self.consecutive_idles = 0
+        self._phase5_post_turn()
         self._check_post_turn_events()
         self.change_scene("result")
 
@@ -529,6 +587,10 @@ class Game:
             self.naviko_msg = random.choice(NAVIKO_IDLE)
             self.week += 1
             self.mishap_event = None
+            # Phase 5: Track idle streaks
+            self.consecutive_idles += 1
+            self.consecutive_mishaps = 0
+            self._phase5_post_turn()
             self._check_post_turn_events()
             self.change_scene("result")
             return
@@ -562,6 +624,11 @@ class Game:
         if office_bonus > 0:
             earned = int(earned * (1.0 + office_bonus / 100.0))
 
+        # Phase 5: Synergy bonus
+        synergy_bonus = sum(s["bonus"] for s in self.active_synergies)
+        if synergy_bonus > 0:
+            earned = int(earned * (1.0 + synergy_bonus / 100.0))
+
         # Check for mishap (やらかし)
         mishap_chance = self._calc_mishap_chance(a, job)
         mishap = None
@@ -584,6 +651,11 @@ class Game:
             self.month_earnings += earned
             self.year_earnings += earned
             self.month_mishaps += 1
+            # Phase 5: Track mishap stats
+            self.total_earnings += earned
+            self.total_mishaps += 1
+            self.consecutive_mishaps += 1
+            self.consecutive_idles = 0
 
             a["exp"] += 5  # less exp on mishap
             fat_add = 1 if self._has_equip("fatigue_reduce") else 2
@@ -609,6 +681,7 @@ class Game:
 
             self.week += 1
             self._check_levelup(a)
+            self._phase5_post_turn()
             self._check_post_turn_events()
             self.change_scene("result")
             return
@@ -628,6 +701,11 @@ class Game:
         # Phase 4: Track earnings
         self.month_earnings += earned
         self.year_earnings += earned
+        # Phase 5: Track success stats
+        self.total_earnings += earned
+        self.consecutive_mishaps = 0
+        self.consecutive_idles = 0
+        self.completed_jobs.add(job["name"])
 
         a["exp"] += 15 if is_strong else 10
         # Memory expansion: 50% chance to skip fatigue gain
@@ -670,6 +748,15 @@ class Game:
 
         self.week += 1
         self.mishap_event = None
+        # Phase 5: Check synergies (only on success path)
+        new_synergies = self._check_synergies()
+        for syn in new_synergies:
+            self.turn_log.append("")
+            self.turn_log.append(f"★ シナジー「{syn['name']}」発動！")
+            self.turn_log.append(f"  {syn['desc']}")
+        if new_synergies:
+            self.naviko_msg = random.choice(NAVIKO_SYNERGY)
+        self._phase5_post_turn()
         self._check_post_turn_events()
         self.change_scene("result")
 
@@ -739,6 +826,195 @@ class Game:
         wk = (w - 1) % 4 + 1
         return yr, mo, wk
 
+    # ── Phase 5: Synergy / Title / Ending ──
+
+    def _check_synergies(self):
+        """Check if any new synergy combos have been unlocked."""
+        new = []
+        active_names = {s["name"] for s in self.active_synergies}
+        for syn in SYNERGIES:
+            if syn["name"] in active_names:
+                continue
+            if all(j in self.completed_jobs for j in syn["jobs"]):
+                self.active_synergies.append(syn)
+                new.append(syn)
+        return new
+
+    def _check_titles(self):
+        """Check if any new titles have been earned."""
+        new = []
+        earned_ids = {t["id"] for t in self.earned_titles}
+        for title in TITLES:
+            if title["id"] in earned_ids:
+                continue
+            tid = title["id"]
+            earned = False
+            if tid == "loose_ceo" and self.consecutive_mishaps >= 10:
+                earned = True
+            elif tid == "emperor" and len(self.completed_jobs) >= len(ALL_JOBS):
+                earned = True
+            elif tid == "legend" and self.rep_rank >= 5:
+                earned = True
+            elif tid == "neet" and self.consecutive_idles >= 10:
+                earned = True
+            elif tid == "careful":
+                if (self.agents and self.agents[0]["level"] >= 10
+                        and self.total_mishaps == 0):
+                    earned = True
+            elif tid == "rich" and self.coins >= 100000:
+                earned = True
+            # "perfectionist" is checked at ending only
+            if earned:
+                self.earned_titles.append(title)
+                new.append(title)
+        return new
+
+    def _phase5_post_turn(self):
+        """Check titles after every turn and announce."""
+        new_titles = self._check_titles()
+        for t in new_titles:
+            self.turn_log.append("")
+            self.turn_log.append(f"★ 称号「{t['name']}」獲得！")
+        if new_titles:
+            self.naviko_msg = random.choice(NAVIKO_TITLE)
+
+    def _determine_ending(self):
+        """Determine which ending the player gets (priority order)."""
+        has_lv5 = "AI組織運営" in self.completed_jobs
+        # Empire: rep S + office max + Lv5 job done
+        if self.rep_rank >= 5 and self.office_level >= 4 and has_lv5:
+            return ENDINGS[0]  # empire
+        # Rebellion: 50+ total mishaps
+        if self.total_mishaps >= 50:
+            return ENDINGS[1]  # rebellion
+        # Stable: rep B+ (rank index >= 3)
+        if self.rep_rank >= 3:
+            return ENDINGS[2]  # stable
+        # Small: rep D or lower (rank index <= 1)
+        if self.rep_rank <= 1:
+            return ENDINGS[3]  # small
+        # Default (rep C or D range)
+        return ENDINGS[4]  # default
+
+    def _reset_game(self):
+        """Reset all game state for a new playthrough."""
+        self.scene = "title"
+        self.week = 0
+        self.coins = 0
+        self.rep_rank = 0
+        self.agents = []
+        self.owned_equip = []
+        self.office_level = 0
+        self.available_jobs = []
+        self.selected_job = None
+        self.current_job = None
+        self.turn_log = []
+        self.turn_earned = 0
+        self.mishap_event = None
+        self.select_idx = 0
+        self.naming_name = ""
+        self.naviko_msg = ""
+        self.job_scroll = 0
+        self.equip_scroll = 0
+        self.month_earnings = 0
+        self.month_mishaps = 0
+        self.year_earnings = 0
+        self.pending_scenes = []
+        self.prev_rep_rank = 0
+        self.rankup_from = 0
+        self.report_data = {}
+        self.tax_year_income = 0
+        self.total_mishaps = 0
+        self.consecutive_mishaps = 0
+        self.consecutive_idles = 0
+        self.completed_jobs = set()
+        self.earned_titles = []
+        self.active_synergies = []
+        self.total_earnings = 0
+        self._scene_comment = ""
+        self.ending_data = None
+        self.work_timer = 0
+        self._setup_scene()
+
+    # Phase 5: Ending scene
+
+    def update_ending(self):
+        if self.buttons["restart"].clicked():
+            self._reset_game()
+
+    def draw_ending(self):
+        pyxel.cls(C_BLACK)
+        end = self.ending_data
+        if not end:
+            return
+
+        # Sparkle animation for empire ending
+        frame = pyxel.frame_count
+        if end["id"] == "empire":
+            for i in range(12):
+                sx = (i * 23 + frame * 2) % WIDTH
+                sy = (i * 13 + frame) % 30
+                pyxel.pset(sx, sy, C_YELLOW if (frame + i) % 2 else C_WHITE)
+
+        # Title
+        title_col = C_YELLOW if end["id"] == "empire" else C_WHITE
+        text_centered(14, f"~ {end['name']} ~", title_col, self.font)
+        pyxel.line(0, 32, WIDTH, 32, C_DGRAY)
+
+        # Description
+        y = 42
+        for line in end["desc"].split("\n"):
+            text_centered(y, line, C_WHITE, self.font_s)
+            y += 16
+
+        # Stats summary
+        y += 4
+        pyxel.line(20, y, 220, y, C_DGRAY)
+        y += 8
+        stats = [
+            ("総収益", f"{self.total_earnings}G", C_GREEN),
+            ("やらかし", f"{self.total_mishaps}回",
+             C_PINK if self.total_mishaps > 0 else C_WHITE),
+            ("評判", REP_RANKS[self.rep_rank], C_YELLOW),
+        ]
+        if self.agents:
+            stats.append(("AI Lv", str(self.agents[0]["level"]), C_SKYBLUE))
+        stats.append(("事務所", OFFICE_LEVELS[self.office_level]["name"], C_WHITE))
+        stats.append((
+            "副業制覇",
+            f"{len(self.completed_jobs)}/{len(ALL_JOBS)}",
+            C_GREEN if len(self.completed_jobs) >= len(ALL_JOBS) else C_WHITE,
+        ))
+
+        for label, value, col in stats:
+            pyxel.text(36, y, label, C_GRAY, self.font_s)
+            pyxel.text(148, y, value, col, self.font_s)
+            y += 14
+
+        # Titles earned
+        if self.earned_titles:
+            y += 4
+            pyxel.text(36, y, "獲得称号:", C_YELLOW, self.font_s)
+            y += 14
+            for t in self.earned_titles[:3]:
+                pyxel.text(44, y, f"★ {t['name']}", C_SKYBLUE, self.font_s)
+                y += 14
+            if len(self.earned_titles) > 3:
+                pyxel.text(44, y, f"  他{len(self.earned_titles) - 3}個", C_GRAY, self.font_s)
+
+        # Naviko comment area
+        nav_y = 236
+        pyxel.rect(0, nav_y, WIDTH, 38, C_NAVY)
+        pyxel.rectb(0, nav_y, WIDTH, 38, C_DGRAY)
+        pyxel.blt(1, nav_y + 3, 0, 96, 0, 32, 32, SPRITE_COLKEY)
+        naviko = end.get("naviko", "")
+        lines = naviko.split("\n")
+        for i, line in enumerate(lines[:3]):
+            pyxel.text(32, nav_y + 4 + i * 12, line, C_WHITE, self.font_s)
+
+        # Restart button
+        self.buttons["restart"].draw(self.font, C_DGREEN, C_WHITE, C_GREEN)
+
     # ── Draw dispatch ──
 
     def draw(self):
@@ -749,16 +1025,16 @@ class Game:
 
     def draw_title(self):
         pyxel.cls(C_BLACK)
-        text_centered(100, "自動化帝国", C_YELLOW, self.font)
-        text_centered(130, "AI副業経営シミュレーション", C_WHITE, self.font_s)
+        text_centered(160, "自動化帝国", C_YELLOW, self.font)
+        text_centered(190, "AI副業経営シミュレーション", C_WHITE, self.font_s)
         if pyxel.frame_count % 60 < 40:
-            text_centered(230, "タップしてスタート", C_GRAY, self.font_s)
-        text_centered(300, "v0.4 - Phase 4", C_DGRAY, self.font_s)
+            text_centered(340, "タップしてスタート", C_GRAY, self.font_s)
+        text_centered(460, "v0.5 - Phase 5", C_DGRAY, self.font_s)
 
     def draw_select(self):
         pyxel.cls(C_BLACK)
-        text_centered(15, "パートナーを選べ", C_YELLOW, self.font)
-        text_centered(32, "タップして選択", C_GRAY, self.font_s)
+        text_centered(18, "パートナーを選べ", C_YELLOW, self.font)
+        text_centered(38, "タップして選択", C_GRAY, self.font_s)
 
         for i, st in enumerate(STARTERS):
             b = self.buttons[f"c{i}"]
@@ -766,27 +1042,27 @@ class Game:
             pyxel.rectb(b.x, b.y, b.w, b.h, st["color"])
 
             # Avatar
-            ax, ay = b.x + 14, b.y + 14
+            ax, ay = b.x + 18, b.y + 20
             self._draw_avatar_small(st["id"], ax, ay, st["color"])
 
             # Text
-            tx = b.x + 52
-            pyxel.text(tx, b.y + 8, st["name"], C_WHITE, self.font)
-            pyxel.text(tx, b.y + 26, st["type_label"], st["color"], self.font_s)
+            tx = b.x + 60
+            pyxel.text(tx, b.y + 10, st["name"], C_WHITE, self.font)
+            pyxel.text(tx, b.y + 30, st["type_label"], st["color"], self.font_s)
             for j, line in enumerate(st["desc"].split("\n")):
-                pyxel.text(tx, b.y + 44 + j * 14, line, C_GRAY, self.font_s)
+                pyxel.text(tx, b.y + 52 + j * 16, line, C_GRAY, self.font_s)
 
     def draw_naming(self):
         pyxel.cls(C_BLACK)
         st = STARTERS[self.select_idx]
 
-        text_centered(15, "名前をつけよう", C_YELLOW, self.font)
-        self._draw_avatar_large(st["id"], 120, 80, st["color"])
-        text_centered(118, st["type_label"], st["color"], self.font_s)
+        text_centered(20, "名前をつけよう", C_YELLOW, self.font)
+        self._draw_avatar_large(st["id"], 135, 120, st["color"])
+        text_centered(165, st["type_label"], st["color"], self.font_s)
 
         # Name display panel
-        draw_panel(30, 155, 180, 36, C_NAVY, C_GRAY)
-        text_centered(163, self.naming_name, C_WHITE, self.font)
+        draw_panel(45, 240, 180, 40, C_NAVY, C_GRAY)
+        text_centered(250, self.naming_name, C_WHITE, self.font)
 
         # Buttons
         self.buttons["rand"].draw(self.font_s, C_DGRAY, C_WHITE, C_GRAY)
@@ -794,96 +1070,144 @@ class Game:
 
     def draw_office(self):
         # Status bar
-        pyxel.rect(0, 0, WIDTH, 20, C_BLACK)
-        pyxel.text(4, 5, f"{self.coins}G", C_YELLOW, self.font_s)
+        pyxel.rect(0, 0, WIDTH, 24, C_BLACK)
+        pyxel.text(6, 7, f"{self.coins}G", C_YELLOW, self.font_s)
         rank = REP_RANKS[self.rep_rank]
-        pyxel.text(90, 5, f"評判:{rank}", C_WHITE, self.font_s)
+        pyxel.text(100, 7, f"評判:{rank}", C_WHITE, self.font_s)
         if self.week > 0:
             yr, mo, _ = self._week_to_date(self.week)
-            pyxel.text(175, 5, f"{yr}年{mo}月", C_GRAY, self.font_s)
+            pyxel.text(200, 7, f"{yr}年{mo}月", C_GRAY, self.font_s)
 
-        # Office area
-        pyxel.rect(0, 20, WIDTH, 140, C_NAVY)
+        # Office area (expanded for 9:16)
+        pyxel.rect(0, 24, WIDTH, 230, C_NAVY)
 
         # Phase 4: Office visuals based on level
         if self.office_level >= 4:
-            # AI帝国タワー - gold accent
-            pyxel.rect(0, 20, WIDTH, 4, C_YELLOW)
-            pyxel.rect(0, 142, WIDTH, 3, C_YELLOW)
+            pyxel.rect(0, 24, WIDTH, 4, C_YELLOW)
+            pyxel.rect(0, 236, WIDTH, 3, C_YELLOW)
         elif self.office_level >= 3:
-            # ビル1棟
-            pyxel.rect(0, 142, WIDTH, 3, C_GREEN)
+            pyxel.rect(0, 236, WIDTH, 3, C_GREEN)
         elif self.office_level >= 2:
-            # フロアオフィス
-            pyxel.rect(0, 142, WIDTH, 3, C_SKYBLUE)
+            pyxel.rect(0, 236, WIDTH, 3, C_SKYBLUE)
 
         # Floor line
-        pyxel.line(0, 145, WIDTH, 145, C_DGRAY)
+        pyxel.line(0, 240, WIDTH, 240, C_DGRAY)
         # Desk
         desk_col = C_BROWN if self.office_level < 3 else C_ORANGE
-        pyxel.rect(60, 125, 120, 16, desk_col)
+        pyxel.rect(75, 210, 120, 18, desk_col)
         # Monitor
-        pyxel.rect(98, 105, 44, 20, C_DGRAY)
+        pyxel.rect(110, 186, 50, 24, C_DGRAY)
         monitor_col = C_SKYBLUE if self.office_level < 4 else C_GREEN
-        pyxel.rect(102, 108, 36, 14, monitor_col)
+        pyxel.rect(114, 190, 42, 16, monitor_col)
 
         # Phase 4: Extra furniture for higher office levels
         if self.office_level >= 2:
-            # Bookshelf
-            pyxel.rect(8, 100, 24, 40, C_BROWN)
-            pyxel.line(8, 110, 31, 110, C_DGRAY)
-            pyxel.line(8, 120, 31, 120, C_DGRAY)
-            pyxel.line(8, 130, 31, 130, C_DGRAY)
+            pyxel.rect(12, 180, 28, 48, C_BROWN)
+            pyxel.line(12, 192, 39, 192, C_DGRAY)
+            pyxel.line(12, 204, 39, 204, C_DGRAY)
+            pyxel.line(12, 216, 39, 216, C_DGRAY)
         if self.office_level >= 3:
-            # Server rack
-            pyxel.rect(208, 100, 24, 40, C_DGRAY)
-            pyxel.rect(212, 106, 16, 4, C_GREEN)
-            pyxel.rect(212, 116, 16, 4, C_SKYBLUE)
-            pyxel.rect(212, 126, 16, 4, C_GREEN)
+            pyxel.rect(230, 180, 28, 48, C_DGRAY)
+            pyxel.rect(234, 188, 20, 5, C_GREEN)
+            pyxel.rect(234, 200, 20, 5, C_SKYBLUE)
+            pyxel.rect(234, 212, 20, 5, C_GREEN)
 
         # Agent at desk
         if self.agents:
             a = self.agents[0]
             bob = -2 if (pyxel.frame_count // 20) % 2 else 0
-            self._draw_avatar_small(a["id"], 108, 80 + bob, a["color"])
+            self._draw_avatar_small(a["id"], 123, 150 + bob, a["color"])
 
         # Current job indicator
         if self.current_job:
-            pyxel.text(8, 148, f"受注中: {self.current_job['name']}", C_GREEN, self.font_s)
+            pyxel.text(10, 248, f"受注中: {self.current_job['name']}", C_GREEN, self.font_s)
         else:
-            pyxel.text(8, 148, "案件未選択", C_DGRAY, self.font_s)
+            pyxel.text(10, 248, "案件未選択", C_DGRAY, self.font_s)
 
         # Phase 4: Office name
         office_name = OFFICE_LEVELS[self.office_level]["name"]
-        pyxel.text(140, 148, office_name, C_GRAY, self.font_s)
+        pyxel.text(165, 248, office_name, C_GRAY, self.font_s)
 
         # Naviko message area
-        pyxel.rect(0, 160, WIDTH, 48, C_BLACK)
-        pyxel.rectb(0, 160, WIDTH, 48, C_DGRAY)
-        # Naviko icon
-        pyxel.circ(16, 180, 10, C_LAVENDER)
-        pyxel.text(10, 176, "ナ", C_WHITE, self.font_s)
-        # Message
+        pyxel.rect(0, 268, WIDTH, 60, C_BLACK)
+        pyxel.rectb(0, 268, WIDTH, 60, C_DGRAY)
+        pyxel.blt(2, 278, 0, 96, 0, 32, 32, SPRITE_COLKEY)
         for i, line in enumerate(self.naviko_msg.split("\n")):
-            pyxel.text(34, 168 + i * 14, line, C_WHITE, self.font_s)
+            pyxel.text(36, 276 + i * 16, line, C_WHITE, self.font_s)
 
         # Bottom buttons
         for key in ("jobs", "ai", "equip"):
             self.buttons[key].draw(self.font_s, C_DGRAY, C_WHITE, C_GRAY)
         self.buttons["next"].draw(self.font_s, C_DGREEN, C_WHITE, C_GREEN)
 
+    def draw_working(self):
+        """Working/processing animation screen."""
+        pyxel.cls(C_BLACK)
+        frame = self.work_timer
+
+        # Determine what's happening
+        is_defrag = getattr(self, '_is_defragging', False)
+        if is_defrag:
+            title = "デフラグ中..."
+            sub = "負荷をリセットしています"
+        elif self.current_job:
+            title = "作業中..."
+            sub = f"「{self.current_job['name']}」を実行中"
+        else:
+            title = "時間経過..."
+            sub = "1週間が過ぎていく..."
+
+        # Title
+        text_centered(100, title, C_YELLOW, self.font)
+        text_centered(130, sub, C_GRAY, self.font_s)
+
+        # AI avatar bouncing
+        if self.agents:
+            a = self.agents[0]
+            bounce = abs((frame % 30) - 15) - 8
+            self._draw_avatar_large(a["id"], 135, 210 + bounce, a["color"])
+
+        # Progress bar
+        bar_x, bar_y, bar_w, bar_h = 40, 290, 190, 16
+        pyxel.rect(bar_x, bar_y, bar_w, bar_h, C_DGRAY)
+        progress = min(frame / 90.0, 1.0)
+        fill_w = int(bar_w * progress)
+        bar_col = C_GREEN if not is_defrag else C_SKYBLUE
+        if fill_w > 0:
+            pyxel.rect(bar_x, bar_y, fill_w, bar_h, bar_col)
+        pyxel.rectb(bar_x, bar_y, bar_w, bar_h, C_GRAY)
+
+        # Percentage
+        pct = int(progress * 100)
+        text_centered(312, f"{pct}%", C_WHITE, self.font_s)
+
+        # Animated dots
+        dots = "." * ((frame // 10) % 4)
+        text_centered(340, dots, C_GRAY, self.font_s)
+
+        # Naviko comment
+        naviko_msgs = [
+            "がんばれがんばれ…", "処理中…もうちょい。",
+            "ふむふむ…", "順調だよ。",
+        ]
+        msg_idx = (frame // 30) % len(naviko_msgs)
+        pyxel.rect(0, 380, WIDTH, 50, C_NAVY)
+        pyxel.rectb(0, 380, WIDTH, 50, C_DGRAY)
+        pyxel.blt(2, 389, 0, 96, 0, 32, 32, SPRITE_COLKEY)
+        pyxel.text(34, 396, naviko_msgs[msg_idx], C_WHITE, self.font_s)
+
     def draw_result(self):
         pyxel.cls(C_BLACK)
 
         if self.mishap_event:
-            text_centered(10, "!! やらかし発生 !!", C_RED, self.font)
+            text_centered(16, "!! やらかし発生 !!", C_RED, self.font)
         else:
-            text_centered(10, "今週の結果", C_YELLOW, self.font)
+            text_centered(16, "今週の結果", C_YELLOW, self.font)
 
-        y = 50
+        y = 60
         for line in self.turn_log:
             if line == "":
-                y += 6
+                y += 8
                 continue
             if "やらかし" in line:
                 col = C_RED
@@ -898,16 +1222,16 @@ class Game:
             else:
                 col = C_WHITE
             text_centered(y, line, col, self.font_s)
-            y += 18
+            y += 20
 
         # Show mishap detail
         if self.mishap_event:
-            y += 4
-            pyxel.rect(16, y, 208, 60, C_NAVY)
-            pyxel.rectb(16, y, 208, 60, C_RED)
+            y += 6
+            pyxel.rect(20, y, 230, 68, C_NAVY)
+            pyxel.rectb(20, y, 230, 68, C_RED)
             for i, line in enumerate(self.mishap_event["text"].split("\n")):
-                pyxel.text(24, y + 8 + i * 14, line, C_PINK, self.font_s)
-            y += 66
+                pyxel.text(28, y + 10 + i * 16, line, C_PINK, self.font_s)
+            y += 74
 
         self.buttons["cont"].draw(self.font, C_DGRAY, C_WHITE, C_GRAY)
 
@@ -915,27 +1239,26 @@ class Game:
         pyxel.cls(C_BLACK)
 
         # Header
-        text_centered(6, "どうする？", C_RED, self.font)
-        pyxel.line(0, 20, WIDTH, 20, C_DGRAY)
+        text_centered(10, "どうする？", C_RED, self.font)
+        pyxel.line(0, 28, WIDTH, 28, C_DGRAY)
 
         # Mishap text (up to 3 lines)
         if self.mishap_event:
-            y = 26
+            y = 36
             for line in self.mishap_event["text"].split("\n"):
                 text_centered(y, line, C_PINK, self.font_s)
-                y += 14
+                y += 16
 
         # Naviko comment area
-        pyxel.rect(0, 76, WIDTH, 44, C_NAVY)
-        pyxel.rectb(0, 76, WIDTH, 44, C_DGRAY)
-        pyxel.circ(16, 96, 8, C_LAVENDER)
-        pyxel.text(10, 93, "ナ", C_WHITE, self.font_s)
+        pyxel.rect(0, 96, WIDTH, 56, C_NAVY)
+        pyxel.rectb(0, 96, WIDTH, 56, C_DGRAY)
+        pyxel.blt(2, 104, 0, 96, 0, 32, 32, SPRITE_COLKEY)
         msg_lines = self.naviko_msg.split("\n") if self.naviko_msg else ["..."]
-        pyxel.text(32, 82, msg_lines[0], C_WHITE, self.font_s)
+        pyxel.text(34, 104, msg_lines[0], C_WHITE, self.font_s)
         if len(msg_lines) > 1:
-            pyxel.text(32, 96, msg_lines[1], C_WHITE, self.font_s)
+            pyxel.text(34, 120, msg_lines[1], C_WHITE, self.font_s)
         if len(msg_lines) > 2:
-            pyxel.text(32, 110, msg_lines[2], C_WHITE, self.font_s)
+            pyxel.text(34, 136, msg_lines[2], C_WHITE, self.font_s)
 
         # Choice buttons
         if self.mishap_event:
@@ -948,10 +1271,10 @@ class Game:
                     pyxel.rectb(btn.x, btn.y, btn.w, btn.h, C_GRAY)
                     lines = choice["text"].split("\n")
                     if len(lines) == 1:
-                        pyxel.text(btn.x + 8, btn.y + (btn.h - 12) // 2, lines[0], C_WHITE, self.font_s)
+                        pyxel.text(btn.x + 10, btn.y + (btn.h - 12) // 2, lines[0], C_WHITE, self.font_s)
                     else:
-                        pyxel.text(btn.x + 8, btn.y + 6, lines[0], C_WHITE, self.font_s)
-                        pyxel.text(btn.x + 8, btn.y + 20, lines[1], C_WHITE, self.font_s)
+                        pyxel.text(btn.x + 10, btn.y + 10, lines[0], C_WHITE, self.font_s)
+                        pyxel.text(btn.x + 10, btn.y + 26, lines[1], C_WHITE, self.font_s)
 
     # Phase 4: Monthly report screen
 
@@ -962,11 +1285,11 @@ class Game:
         mo = d.get("month", 1)
         yr = d.get("year", 1)
 
-        text_centered(10, f"{yr}年目 {mo}月のレポート", C_YELLOW, self.font)
-        pyxel.line(0, 28, WIDTH, 28, C_DGRAY)
+        text_centered(16, f"{yr}年目 {mo}月のレポート", C_YELLOW, self.font)
+        pyxel.line(0, 36, WIDTH, 36, C_DGRAY)
 
         # Stats
-        y = 50
+        y = 70
         items = [
             ("収益", f"{d.get('earnings', 0)}G", C_GREEN),
             ("やらかし", f"{d.get('mishaps', 0)}回", C_PINK if d.get('mishaps', 0) > 0 else C_WHITE),
@@ -976,23 +1299,22 @@ class Game:
         ]
 
         for label, value, col in items:
-            pyxel.text(40, y, label, C_GRAY, self.font_s)
-            pyxel.text(140, y, value, col, self.font_s)
-            y += 24
+            pyxel.text(50, y, label, C_GRAY, self.font_s)
+            pyxel.text(160, y, value, col, self.font_s)
+            y += 30
 
         # Naviko comment
-        pyxel.rect(0, 190, WIDTH, 50, C_NAVY)
-        pyxel.rectb(0, 190, WIDTH, 50, C_DGRAY)
-        pyxel.circ(16, 212, 8, C_LAVENDER)
-        pyxel.text(10, 209, "ナ", C_WHITE, self.font_s)
+        pyxel.rect(0, 300, WIDTH, 60, C_NAVY)
+        pyxel.rectb(0, 300, WIDTH, 60, C_DGRAY)
+        pyxel.blt(2, 310, 0, 96, 0, 32, 32, SPRITE_COLKEY)
 
         comment = self._scene_comment
         lines = comment.split("\n")
-        pyxel.text(32, 198, lines[0], C_WHITE, self.font_s)
+        pyxel.text(34, 308, lines[0], C_WHITE, self.font_s)
         if len(lines) > 1:
-            pyxel.text(32, 212, lines[1], C_WHITE, self.font_s)
+            pyxel.text(34, 324, lines[1], C_WHITE, self.font_s)
         if len(lines) > 2:
-            pyxel.text(32, 226, lines[2], C_WHITE, self.font_s)
+            pyxel.text(34, 340, lines[2], C_WHITE, self.font_s)
 
         self.buttons["cont"].draw(self.font, C_DGRAY, C_WHITE, C_GRAY)
 
@@ -1026,8 +1348,7 @@ class Game:
         # Naviko comment
         pyxel.rect(0, 190, WIDTH, 50, C_NAVY)
         pyxel.rectb(0, 190, WIDTH, 50, C_YELLOW)
-        pyxel.circ(16, 212, 8, C_LAVENDER)
-        pyxel.text(10, 209, "ナ", C_WHITE, self.font_s)
+        pyxel.blt(1, 199, 0, 96, 0, 32, 32, SPRITE_COLKEY)
         comment = self._scene_comment
         lines = comment.split("\n")
         pyxel.text(32, 198, lines[0], C_WHITE, self.font_s)
@@ -1050,8 +1371,7 @@ class Game:
         # Naviko comment
         pyxel.rect(0, 66, WIDTH, 44, C_NAVY)
         pyxel.rectb(0, 66, WIDTH, 44, C_DGRAY)
-        pyxel.circ(16, 86, 8, C_LAVENDER)
-        pyxel.text(10, 83, "ナ", C_WHITE, self.font_s)
+        pyxel.blt(1, 73, 0, 96, 0, 32, 32, SPRITE_COLKEY)
         comment = self._scene_comment
         lines = comment.split("\n")
         pyxel.text(32, 72, lines[0], C_WHITE, self.font_s)
@@ -1238,38 +1558,19 @@ class Game:
     # ── Avatar drawing ──
 
     def _draw_avatar_small(self, agent_id, x, y, col):
-        """Draw a small ~24x24 avatar at top-left (x, y)."""
-        if agent_id == "poem":
-            pyxel.circ(x + 12, y + 14, 12, col)
-            pyxel.pset(x + 8, y + 11, C_WHITE)
-            pyxel.pset(x + 16, y + 11, C_WHITE)
-            pyxel.rect(x + 4, y, 16, 6, col)
-        elif agent_id == "bugmaru":
-            pyxel.rect(x, y + 2, 24, 22, col)
-            pyxel.rectb(x + 3, y + 9, 8, 6, C_WHITE)
-            pyxel.rectb(x + 13, y + 9, 8, 6, C_WHITE)
-            pyxel.line(x + 11, y + 11, x + 13, y + 11, C_WHITE)
+        """Draw a 32x32 sprite at top-left (x, y)."""
+        uv = SPRITE_UV.get(agent_id)
+        if uv:
+            pyxel.blt(x - 4, y - 4, 0, uv[0], uv[1], 32, 32, SPRITE_COLKEY)
         else:
-            pyxel.tri(x + 12, y, x, y + 24, x + 24, y + 24, col)
-            pyxel.pset(x + 9, y + 12, C_WHITE)
-            pyxel.pset(x + 15, y + 12, C_WHITE)
+            # Fallback for unknown agents
+            pyxel.circ(x + 12, y + 14, 12, col)
 
     def _draw_avatar_large(self, agent_id, cx, cy, col):
-        """Draw a large avatar centered at (cx, cy)."""
-        if agent_id == "poem":
-            pyxel.circ(cx, cy, 22, col)
-            pyxel.pset(cx - 7, cy - 5, C_WHITE)
-            pyxel.pset(cx + 7, cy - 5, C_WHITE)
-            pyxel.line(cx - 4, cy + 6, cx + 4, cy + 6, C_WHITE)
-            pyxel.rect(cx - 14, cy - 24, 28, 8, col)
-        elif agent_id == "bugmaru":
-            pyxel.rect(cx - 22, cy - 20, 44, 44, col)
-            pyxel.rectb(cx - 14, cy - 6, 12, 10, C_WHITE)
-            pyxel.rectb(cx + 2, cy - 6, 12, 10, C_WHITE)
-            pyxel.line(cx - 2, cy - 2, cx + 2, cy - 2, C_WHITE)
-            pyxel.line(cx - 6, cy + 10, cx + 6, cy + 10, C_WHITE)
+        """Draw a 32x32 sprite centered at (cx, cy)."""
+        uv = SPRITE_UV.get(agent_id)
+        if uv:
+            pyxel.blt(cx - 16, cy - 16, 0, uv[0], uv[1], 32, 32, SPRITE_COLKEY)
         else:
-            pyxel.tri(cx, cy - 26, cx - 22, cy + 22, cx + 22, cy + 22, col)
-            pyxel.pset(cx - 5, cy - 4, C_WHITE)
-            pyxel.pset(cx + 5, cy - 4, C_WHITE)
-            pyxel.line(cx - 6, cy + 6, cx + 6, cy + 6, C_WHITE)
+            # Fallback for unknown agents
+            pyxel.circ(cx, cy, 22, col)
