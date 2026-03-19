@@ -29,7 +29,7 @@ PYXEL_PALETTE = [
     (237, 199, 176),   # 15: peach
 ]
 
-COLKEY = 8  # C_RED - used as transparent color in Pyxel
+COLKEY = 0  # C_BLACK - used as transparent color in Pyxel
 
 # Character files in sprite sheet order (left to right)
 CHARACTERS = [
