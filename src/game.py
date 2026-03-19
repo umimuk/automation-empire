@@ -1011,7 +1011,7 @@ class Game:
         nav_y = 236
         pyxel.rect(0, nav_y, WIDTH, 38, C_NAVY)
         pyxel.rectb(0, nav_y, WIDTH, 38, C_DGRAY)
-        pyxel.blt(1, nav_y + 3, 0, 96, 0, 32, 32, SPRITE_COLKEY)
+        pyxel.blt(1, nav_y + 3, 0, 192, 0, 32, 32, SPRITE_COLKEY)
         naviko = end.get("naviko", "")
         lines = naviko.split("\n")
         for i, line in enumerate(lines[:3]):
@@ -1047,7 +1047,7 @@ class Game:
             pyxel.rectb(b.x, b.y, b.w, b.h, st["color"])
 
             # Avatar
-            ax, ay = b.x + 18, b.y + 20
+            ax, ay = b.x + 18, b.y + 35
             self._draw_avatar_small(st["id"], ax, ay, st["color"])
 
             # Text
@@ -1198,7 +1198,7 @@ class Game:
         msg_idx = (frame // 30) % len(naviko_msgs)
         pyxel.rect(0, 380, WIDTH, 50, C_NAVY)
         pyxel.rectb(0, 380, WIDTH, 50, C_DGRAY)
-        pyxel.blt(2, 389, 0, 96, 0, 32, 32, SPRITE_COLKEY)
+        pyxel.blt(2, 389, 0, 192, 0, 32, 32, SPRITE_COLKEY)
         pyxel.text(34, 396, naviko_msgs[msg_idx], C_WHITE, self.font_s)
 
     def draw_result(self):
@@ -1257,7 +1257,7 @@ class Game:
         # Naviko comment area
         pyxel.rect(0, 96, WIDTH, 56, C_NAVY)
         pyxel.rectb(0, 96, WIDTH, 56, C_DGRAY)
-        pyxel.blt(2, 104, 0, 96, 0, 32, 32, SPRITE_COLKEY)
+        pyxel.blt(2, 104, 0, 192, 0, 32, 32, SPRITE_COLKEY)
         msg_lines = self.naviko_msg.split("\n") if self.naviko_msg else ["..."]
         pyxel.text(34, 104, msg_lines[0], C_WHITE, self.font_s)
         if len(msg_lines) > 1:
@@ -1311,7 +1311,7 @@ class Game:
         # Naviko comment
         pyxel.rect(0, 300, WIDTH, 60, C_NAVY)
         pyxel.rectb(0, 300, WIDTH, 60, C_DGRAY)
-        pyxel.blt(2, 310, 0, 96, 0, 32, 32, SPRITE_COLKEY)
+        pyxel.blt(2, 310, 0, 192, 0, 32, 32, SPRITE_COLKEY)
 
         comment = self._scene_comment
         lines = comment.split("\n")
@@ -1353,7 +1353,7 @@ class Game:
         # Naviko comment
         pyxel.rect(0, 190, WIDTH, 50, C_NAVY)
         pyxel.rectb(0, 190, WIDTH, 50, C_YELLOW)
-        pyxel.blt(1, 199, 0, 96, 0, 32, 32, SPRITE_COLKEY)
+        pyxel.blt(1, 199, 0, 192, 0, 32, 32, SPRITE_COLKEY)
         comment = self._scene_comment
         lines = comment.split("\n")
         pyxel.text(32, 198, lines[0], C_WHITE, self.font_s)
@@ -1376,7 +1376,7 @@ class Game:
         # Naviko comment
         pyxel.rect(0, 66, WIDTH, 44, C_NAVY)
         pyxel.rectb(0, 66, WIDTH, 44, C_DGRAY)
-        pyxel.blt(1, 73, 0, 96, 0, 32, 32, SPRITE_COLKEY)
+        pyxel.blt(1, 73, 0, 192, 0, 32, 32, SPRITE_COLKEY)
         comment = self._scene_comment
         lines = comment.split("\n")
         pyxel.text(32, 72, lines[0], C_WHITE, self.font_s)

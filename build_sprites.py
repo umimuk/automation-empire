@@ -130,8 +130,8 @@ def process_character(filepath):
     for y in range(SPRITE_SIZE):
         for x in range(SPRITE_SIZE):
             r, g, b, a = src_pixels[x, y]
-            if a < 80:
-                # Transparent → colkey color
+            if a < 80 or (r + g + b < 50):
+                # Transparent or near-black background → colkey color
                 dst_pixels[x, y] = PYXEL_PALETTE[COLKEY]
             else:
                 # Map to nearest palette color
