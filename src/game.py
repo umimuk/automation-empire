@@ -20,15 +20,16 @@ from src.constants import (
     NAVIKO_SYNERGY, NAVIKO_TITLE,
 )
 
-# Sprite sheet layout: each sprite 32x32, colkey=8 (red)
+# Sprite sheet layout: each sprite 64x64, colkey=8 (red)
 _SPRITE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "sprites.png")
 SPRITE_COLKEY = 8  # C_RED used as transparent color
+SPRITE_SZ = 64  # sprite size in pixels
 # agent_id -> (u, v) position in sprite sheet
 SPRITE_UV = {
     "poem": (0, 0),
-    "bugmaru": (32, 0),
-    "hattari": (64, 0),
-    "nabiko": (96, 0),
+    "bugmaru": (64, 0),
+    "hattari": (128, 0),
+    "nabiko": (192, 0),
 }
 from src.ui import Button, text_centered, draw_panel
 
@@ -1131,9 +1132,9 @@ class Game:
         # Naviko message area
         pyxel.rect(0, 268, WIDTH, 60, C_BLACK)
         pyxel.rectb(0, 268, WIDTH, 60, C_DGRAY)
-        pyxel.blt(2, 278, 0, 96, 0, 32, 32, SPRITE_COLKEY)
+        self._draw_naviko_icon(2, 272)
         for i, line in enumerate(self.naviko_msg.split("\n")):
-            pyxel.text(36, 276 + i * 16, line, C_WHITE, self.font_s)
+            pyxel.text(44, 276 + i * 16, line, C_WHITE, self.font_s)
 
         # Bottom buttons
         for key in ("jobs", "ai", "equip"):
@@ -1557,20 +1558,26 @@ class Game:
 
     # ── Avatar drawing ──
 
-    def _draw_avatar_small(self, agent_id, x, y, col):
-        """Draw a 32x32 sprite at top-left (x, y)."""
+    def _draw_avatar_small(self, agent_id, cx, cy, col):
+        """Draw a 64x64 sprite centered at (cx, cy)."""
         uv = SPRITE_UV.get(agent_id)
         if uv:
-            pyxel.blt(x - 4, y - 4, 0, uv[0], uv[1], 32, 32, SPRITE_COLKEY)
+            pyxel.blt(cx - SPRITE_SZ // 2, cy - SPRITE_SZ // 2, 0,
+                       uv[0], uv[1], SPRITE_SZ, SPRITE_SZ, SPRITE_COLKEY)
         else:
-            # Fallback for unknown agents
-            pyxel.circ(x + 12, y + 14, 12, col)
+            pyxel.circ(cx, cy, 20, col)
 
     def _draw_avatar_large(self, agent_id, cx, cy, col):
-        """Draw a 32x32 sprite centered at (cx, cy)."""
+        """Draw a 64x64 sprite centered at (cx, cy)."""
         uv = SPRITE_UV.get(agent_id)
         if uv:
-            pyxel.blt(cx - 16, cy - 16, 0, uv[0], uv[1], 32, 32, SPRITE_COLKEY)
+            pyxel.blt(cx - SPRITE_SZ // 2, cy - SPRITE_SZ // 2, 0,
+                       uv[0], uv[1], SPRITE_SZ, SPRITE_SZ, SPRITE_COLKEY)
         else:
-            # Fallback for unknown agents
-            pyxel.circ(cx, cy, 22, col)
+            pyxel.circ(cx, cy, 28, col)
+
+    def _draw_naviko_icon(self, x, y, size=40):
+        """Draw nabiko face icon for comment panels (cropped from 64x64)."""
+        nu, nv = SPRITE_UV["nabiko"]
+        offset = (SPRITE_SZ - size) // 2
+        pyxel.blt(x, y, 0, nu + offset, nv, size, size, SPRITE_COLKEY)
