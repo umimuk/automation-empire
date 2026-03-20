@@ -22,7 +22,7 @@ from src.constants import (
     NAVIKO_SYNERGY, NAVIKO_TITLE,
 )
 
-# Sprite sheet layout: each sprite 64x64, colkey=8 (red)
+# Sprite sheet layout: each sprite 64x64, colkey=0 (black)
 _SPRITE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "sprites.png")
 SPRITE_COLKEY = 0  # C_BLACK used as transparent color
 SPRITE_SZ = 64  # sprite size in pixels
@@ -35,7 +35,30 @@ SPRITE_UV = {
 }
 NAVIKO_ICON_UV = (0, 64)  # 32x32 pre-rendered nabiko icon
 NAVIKO_ICON_SZ = 32
+
+# Background / logo sprite sheet (image bank 1)
+_BG_SPRITE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "bg_sprites.png")
+# Background UV positions in bank 1 (90x80 stored, drawn at 3x = 270x240)
+BG_UV = {
+    0: (0, 0),    # 自宅の一角 → bg_stage1
+    1: (90, 0),   # ワンルーム → bg_stage2
+    2: (0, 80),   # フロアオフィス → bg_stage3
+    3: (90, 80),  # ビル1棟 → bg_stage4
+    4: (0, 160),  # AI帝国タワー → bg_stage5
+}
+BG_DRAW_W, BG_DRAW_H = 90, 80
+BG_SCALE = 3
+# Logo UV in bank 1
+LOGO_UV = (90, 160)
+LOGO_W, LOGO_H = 90, 48  # stored size; drawn at 3x = 270x144
+LOGO_SCALE = 3
 from src.ui import Button, text_centered, draw_panel
+
+# Working screen messages (module-level to avoid per-frame allocation)
+_NAVIKO_WORKING_MSGS = [
+    "がんばれがんばれ…", "処理中…もうちょい。",
+    "ふむふむ…", "順調だよ。",
+]
 
 
 class Game:
@@ -49,6 +72,10 @@ class Game:
 
         # Load sprite sheet into image bank 0
         pyxel.images[0].load(0, 0, _SPRITE_FILE)
+
+        # Load background/logo sheet into image bank 1
+        if os.path.exists(_BG_SPRITE_FILE):
+            pyxel.images[1].load(0, 0, _BG_SPRITE_FILE)
 
         # Scene
         self.scene = "title"
@@ -69,7 +96,6 @@ class Game:
 
         # Turn result state
         self.turn_log = []
-        self.turn_earned = 0
         self.mishap_event = None  # current mishap dict or None
 
         # UI state
@@ -498,7 +524,9 @@ class Game:
                 self.equip_scroll -= 1
             return
         if "scroll_down" in self.buttons and self.buttons["scroll_down"].clicked():
-            if self.equip_scroll + 4 < len(EQUIPMENTS):
+            has_office_btn = self.office_level < len(OFFICE_LEVELS) - 1
+            max_visible = 3 if has_office_btn else 4
+            if self.equip_scroll + max_visible < len(EQUIPMENTS):
                 self.equip_scroll += 1
             return
         # Check equip slot clicks
@@ -517,10 +545,15 @@ class Game:
                 return
 
     def _visible_equips(self):
-        """Get visible equipment list and create buttons."""
+        """Get visible equipment list and create buttons (cached)."""
         has_office_btn = self.office_level < len(OFFICE_LEVELS) - 1
         eq_y_start = 110 if has_office_btn else 44
         max_visible = 3 if has_office_btn else 4
+
+        # Cache key: only rebuild buttons when state changes
+        cache_key = (self.equip_scroll, self.office_level, tuple(self.owned_equip))
+        if getattr(self, '_equip_cache_key', None) == cache_key and hasattr(self, '_equip_cache_visible'):
+            return self._equip_cache_visible
 
         visible = []
         for i, eq in enumerate(EQUIPMENTS):
@@ -539,6 +572,9 @@ class Game:
             self.buttons["office_up"] = office_btn
         for i, eq in enumerate(visible):
             self.buttons[f"eq{i}"] = Button(16, eq_y_start + i * 64, 208, 56, "")
+
+        self._equip_cache_key = cache_key
+        self._equip_cache_visible = visible
         return visible
 
     # ── Turn logic ──
@@ -934,7 +970,6 @@ class Game:
         self.selected_job = None
         self.current_job = None
         self.turn_log = []
-        self.turn_earned = 0
         self.mishap_event = None
         self.select_idx = 0
         self.naming_name = ""
@@ -960,6 +995,7 @@ class Game:
         self._scene_comment = ""
         self.ending_data = None
         self.work_timer = 0
+        self._is_defragging = False
         self._setup_scene()
 
     # Phase 5: Ending scene
@@ -1051,8 +1087,13 @@ class Game:
 
     def draw_title(self):
         pyxel.cls(C_BLACK)
-        text_centered(160, "自動化帝国", C_YELLOW, self.font)
-        text_centered(190, "AI副業経営シミュレーション", C_WHITE, self.font_s)
+        # Logo image (centered, upper area)
+        logo_draw_w = LOGO_W * LOGO_SCALE  # 270
+        logo_x = (WIDTH - logo_draw_w) // 2
+        pyxel.blt(logo_x, 100, 1,
+                  LOGO_UV[0], LOGO_UV[1], LOGO_W, LOGO_H,
+                  SPRITE_COLKEY, 0, LOGO_SCALE)
+        # Blinking "tap to start"
         if pyxel.frame_count % 60 < 40:
             text_centered(340, "タップしてスタート", C_GRAY, self.font_s)
         text_centered(460, "v0.5 - Phase 5", C_DGRAY, self.font_s)
@@ -1104,45 +1145,20 @@ class Game:
             yr, mo, _ = self._week_to_date(self.week)
             pyxel.text(200, 7, f"{yr}年{mo}月", C_GRAY, self.font_s)
 
-        # Office area (expanded for 9:16)
-        pyxel.rect(0, 24, WIDTH, 230, C_NAVY)
+        # Office area - background image based on office level
+        bg_uv = BG_UV.get(self.office_level, (0, 0))
+        pyxel.blt(0, 24, 1,
+                  bg_uv[0], bg_uv[1], BG_DRAW_W, BG_DRAW_H,
+                  scale=BG_SCALE)
 
-        # Phase 4: Office visuals based on level
-        if self.office_level >= 4:
-            pyxel.rect(0, 24, WIDTH, 4, C_YELLOW)
-            pyxel.rect(0, 236, WIDTH, 3, C_YELLOW)
-        elif self.office_level >= 3:
-            pyxel.rect(0, 236, WIDTH, 3, C_GREEN)
-        elif self.office_level >= 2:
-            pyxel.rect(0, 236, WIDTH, 3, C_SKYBLUE)
-
-        # Floor line
-        pyxel.line(0, 240, WIDTH, 240, C_DGRAY)
-        # Desk
-        desk_col = C_BROWN if self.office_level < 3 else C_ORANGE
-        pyxel.rect(75, 210, 120, 18, desk_col)
-        # Monitor
-        pyxel.rect(110, 186, 50, 24, C_DGRAY)
-        monitor_col = C_SKYBLUE if self.office_level < 4 else C_GREEN
-        pyxel.rect(114, 190, 42, 16, monitor_col)
-
-        # Phase 4: Extra furniture for higher office levels
-        if self.office_level >= 2:
-            pyxel.rect(12, 180, 28, 48, C_BROWN)
-            pyxel.line(12, 192, 39, 192, C_DGRAY)
-            pyxel.line(12, 204, 39, 204, C_DGRAY)
-            pyxel.line(12, 216, 39, 216, C_DGRAY)
-        if self.office_level >= 3:
-            pyxel.rect(230, 180, 28, 48, C_DGRAY)
-            pyxel.rect(234, 188, 20, 5, C_GREEN)
-            pyxel.rect(234, 200, 20, 5, C_SKYBLUE)
-            pyxel.rect(234, 212, 20, 5, C_GREEN)
-
-        # Agent at desk
+        # Agent on top of background
         if self.agents:
             a = self.agents[0]
             bob = -2 if (pyxel.frame_count // 20) % 2 else 0
             self._draw_avatar_small(a["id"], 123, 150 + bob, a["color"])
+
+        # Dark bar for text readability
+        pyxel.rect(0, 244, WIDTH, 20, C_BLACK)
 
         # Current job indicator
         if self.current_job:
@@ -1150,7 +1166,7 @@ class Game:
         else:
             pyxel.text(10, 248, "案件未選択", C_DGRAY, self.font_s)
 
-        # Phase 4: Office name
+        # Office name
         office_name = OFFICE_LEVELS[self.office_level]["name"]
         pyxel.text(165, 248, office_name, C_GRAY, self.font_s)
 
@@ -1212,15 +1228,11 @@ class Game:
         text_centered(340, dots, C_GRAY, self.font_s)
 
         # Naviko comment
-        naviko_msgs = [
-            "がんばれがんばれ…", "処理中…もうちょい。",
-            "ふむふむ…", "順調だよ。",
-        ]
-        msg_idx = (frame // 30) % len(naviko_msgs)
+        msg_idx = (frame // 30) % len(_NAVIKO_WORKING_MSGS)
         pyxel.rect(0, 380, WIDTH, 50, C_NAVY)
         pyxel.rectb(0, 380, WIDTH, 50, C_DGRAY)
         self._draw_naviko_icon(2, 389)
-        pyxel.text(42, 396, naviko_msgs[msg_idx], C_WHITE, self.font_s)
+        pyxel.text(42, 396, _NAVIKO_WORKING_MSGS[msg_idx], C_WHITE, self.font_s)
 
     def draw_result(self):
         pyxel.cls(C_BLACK)
@@ -1584,23 +1596,22 @@ class Game:
 
     # ── Avatar drawing ──
 
-    def _draw_avatar_small(self, agent_id, cx, cy, col):
-        """Draw a 64x64 sprite centered at (cx, cy)."""
+    def _draw_avatar(self, agent_id, cx, cy, col, fallback_r=20):
+        """Draw a 64x64 sprite centered at (cx, cy). fallback_r is circle radius when no sprite."""
         uv = SPRITE_UV.get(agent_id)
         if uv:
             pyxel.blt(cx - SPRITE_SZ // 2, cy - SPRITE_SZ // 2, 0,
                        uv[0], uv[1], SPRITE_SZ, SPRITE_SZ, SPRITE_COLKEY)
         else:
-            pyxel.circ(cx, cy, 20, col)
+            pyxel.circ(cx, cy, fallback_r, col)
+
+    def _draw_avatar_small(self, agent_id, cx, cy, col):
+        """Draw small avatar (64x64 sprite, 20px fallback circle)."""
+        self._draw_avatar(agent_id, cx, cy, col, fallback_r=20)
 
     def _draw_avatar_large(self, agent_id, cx, cy, col):
-        """Draw a 64x64 sprite centered at (cx, cy)."""
-        uv = SPRITE_UV.get(agent_id)
-        if uv:
-            pyxel.blt(cx - SPRITE_SZ // 2, cy - SPRITE_SZ // 2, 0,
-                       uv[0], uv[1], SPRITE_SZ, SPRITE_SZ, SPRITE_COLKEY)
-        else:
-            pyxel.circ(cx, cy, 28, col)
+        """Draw large avatar (64x64 sprite, 28px fallback circle)."""
+        self._draw_avatar(agent_id, cx, cy, col, fallback_r=28)
 
     def _draw_naviko_icon(self, x, y):
         """Draw 32x32 nabiko icon from pre-rendered sprite."""

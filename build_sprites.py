@@ -42,6 +42,15 @@ CHARACTERS = [
 SPRITE_SIZE = 64
 WATERMARK_CROP = 60  # pixels to crop from bottom-right for Gemini mark
 
+# Background/logo processing for image bank 1
+BG_FILENAMES = ["bg_stage1.png", "bg_stage2.png", "bg_stage3.png",
+                "bg_stage4.png", "bg_stage5.png"]
+BG_SIZE = (90, 80)   # stored size; drawn at 3x = 270x240
+BG_POSITIONS = [(0, 0), (90, 0), (0, 80), (90, 80), (0, 160)]
+LOGO_FILENAME = "title_logo.png"
+LOGO_WIDTH = 90       # stored width; drawn at 3x = 270
+LOGO_POS = (90, 160)  # position in bg sprite sheet
+
 
 def color_distance(c1, c2):
     """Weighted Euclidean distance (human perception weighting)."""
@@ -178,6 +187,86 @@ def process_character_small(filepath, size=32):
     return result
 
 
+def nearest_palette_color_full(r, g, b):
+    """Find nearest Pyxel palette color including index 0 (black)."""
+    best_idx = 0
+    best_dist = float("inf")
+    for i, (pr, pg, pb) in enumerate(PYXEL_PALETTE):
+        d = color_distance((r, g, b), (pr, pg, pb))
+        if d < best_dist:
+            best_dist = d
+            best_idx = i
+    return best_idx
+
+
+def process_background(filepath, target_size):
+    """Process background: crop watermark, resize, 16-color (including black)."""
+    img = Image.open(filepath).convert("RGBA")
+    w, h = img.size
+    img = img.crop((0, 0, w - WATERMARK_CROP, h - WATERMARK_CROP))
+    img = img.resize(target_size, Image.LANCZOS)
+    result = Image.new("RGB", target_size)
+    src = img.load()
+    dst = result.load()
+    for y in range(target_size[1]):
+        for x in range(target_size[0]):
+            r, g, b, a = src[x, y]
+            idx = nearest_palette_color_full(r, g, b)
+            dst[x, y] = PYXEL_PALETTE[idx]
+    return result
+
+
+def process_logo(filepath, target_width):
+    """Process logo: crop watermark, resize, 16-color. Transparent → colkey."""
+    img = Image.open(filepath).convert("RGBA")
+    w, h = img.size
+    img = img.crop((0, 0, w - WATERMARK_CROP, h - WATERMARK_CROP))
+    ratio = target_width / img.width
+    target_h = int(img.height * ratio)
+    img = img.resize((target_width, target_h), Image.LANCZOS)
+    result = Image.new("RGB", (target_width, target_h))
+    src = img.load()
+    dst = result.load()
+    for y in range(target_h):
+        for x in range(target_width):
+            r, g, b, a = src[x, y]
+            if a < 80:
+                dst[x, y] = PYXEL_PALETTE[COLKEY]
+            else:
+                idx = nearest_palette_color(r, g, b)
+                dst[x, y] = PYXEL_PALETTE[idx]
+    return result, (target_width, target_h)
+
+
+def build_backgrounds():
+    """Build background + logo sprite sheet for Pyxel image bank 1."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    orig_dir = os.path.join(base_dir, "assets", "originals")
+    out_path = os.path.join(base_dir, "assets", "bg_sprites.png")
+
+    sheet = Image.new("RGB", (256, 256), PYXEL_PALETTE[COLKEY])
+
+    for filename, pos in zip(BG_FILENAMES, BG_POSITIONS):
+        filepath = os.path.join(orig_dir, filename)
+        if not os.path.exists(filepath):
+            print(f"WARNING: {filepath} not found, skipping")
+            continue
+        print(f"Processing {filename} → {BG_SIZE}...")
+        bg = process_background(filepath, BG_SIZE)
+        sheet.paste(bg, pos)
+        print(f"  → at {pos}")
+
+    logo_path = os.path.join(orig_dir, LOGO_FILENAME)
+    if os.path.exists(logo_path):
+        print(f"Processing {LOGO_FILENAME} → width={LOGO_WIDTH}...")
+        logo, logo_size = process_logo(logo_path, LOGO_WIDTH)
+        sheet.paste(logo, LOGO_POS)
+        print(f"  → at {LOGO_POS}, size={logo_size}")
+
+    sheet.save(out_path)
+    print(f"\nBG sprite sheet saved: {out_path}")
+
+
 def main():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     orig_dir = os.path.join(base_dir, "assets", "originals")
@@ -209,6 +298,9 @@ def main():
     sheet.save(out_path)
     print(f"\nSprite sheet saved: {out_path}")
     print(f"Size: {sheet.size}")
+
+    # Build background / logo sheet
+    build_backgrounds()
 
 
 if __name__ == "__main__":
