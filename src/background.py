@@ -123,7 +123,7 @@ class BackgroundRenderer:
         cx = WIDTH // 2  # vanishing point x (center)
         # Vanishing point placed ABOVE the horizon so lines at the horizon
         # are already spread out, giving a gentler perspective
-        vp_y = horizon_y - 80
+        vp_y = horizon_y - 40
 
         # Horizontal grid lines (wider spacing, exponential)
         # All solid lines — depth expressed by color only (dark→bright)
