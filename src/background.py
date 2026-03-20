@@ -122,55 +122,38 @@ class BackgroundRenderer:
         cx = WIDTH // 2  # vanishing point x (center)
         vp_y = horizon_y  # vanishing point y
 
-        # Horizontal grid lines (exponential spacing, closer near horizon)
-        num_hlines = 14
+        # Horizontal grid lines (wider spacing, exponential)
+        num_hlines = 8
+        floor_span = floor_bottom - horizon_y
         for i in range(num_hlines):
-            t = i / num_hlines
-            y = int(horizon_y + (floor_bottom - horizon_y) * (t * t))
-            # Far lines (near horizon) are dashed and darker
-            if i < 4:
+            t = (i + 1) / (num_hlines + 1)
+            y = int(horizon_y + floor_span * (t * t))
+            # Far lines are very dark, near lines slightly brighter
+            if i < 2:
                 self._draw_dashed_line(0, y, WIDTH - 1, y, C_NAVY)
-            elif i < 8:
+            elif i < 5:
                 pyxel.line(0, y, WIDTH - 1, y, C_NAVY)
             else:
                 pyxel.line(0, y, WIDTH - 1, y, C_DGRAY)
 
-        # Vertical grid lines: fan out from vanishing point
-        num_vlines = 16
+        # Vertical grid lines: fan out from vanishing point, full width coverage
+        # Many lines so even far-away area has lines reaching left/right edges
+        num_vlines = 30
         for i in range(num_vlines + 1):
-            # Bottom position (evenly spaced, with slight overshoot at edges)
-            bx = int(-20 + i * (WIDTH + 40) / num_vlines)
-            # At vanishing point, all lines converge to cx
-            # Use line from (cx, vp_y) to (bx, floor_bottom)
-            # Far part (near horizon): dashed; near part: solid
-            mid_y = horizon_y + (floor_bottom - horizon_y) // 3
+            # Bottom positions spread wider than screen to fill edges
+            overshoot = 80
+            bx = int(-overshoot + i * (WIDTH + overshoot * 2) / num_vlines)
+
+            # Draw from vanishing point (cx, vp_y) to bottom (bx, floor_bottom)
+            # Split into far (dashed+very dark) and near (solid+brighter)
+            mid_y = horizon_y + floor_span // 3
             mid_t = (mid_y - vp_y) / max(floor_bottom - vp_y, 1)
             mid_x = int(cx + (bx - cx) * mid_t)
 
-            # Far segment (horizon to mid): dashed, dark
+            # Far segment: very dark, dashed
             self._draw_dashed_line(cx, vp_y, mid_x, mid_y, C_NAVY)
-            # Near segment (mid to bottom): solid, slightly brighter
+            # Near segment: solid, slightly brighter
             pyxel.line(mid_x, mid_y, bx, floor_bottom, C_DGRAY)
-
-        # ── Circuit traces on floor grid lines only ──
-        rng = random.Random(42)
-        for i in range(6):
-            # Place on horizontal grid lines
-            t = (5 + i * 1.5) / num_hlines
-            cy = int(horizon_y + (floor_bottom - horizon_y) * (t * t / (num_hlines * num_hlines / (num_hlines * num_hlines))))
-            # Simpler: pick specific y positions on lower floor
-            cy = int(horizon_y + 40 + i * 16)
-            if cy >= floor_bottom - 4:
-                break
-            sx = rng.randint(20, WIDTH - 70)
-            seg_len = rng.randint(15, 45)
-            # Slow pulsing glow (not flickering)
-            glow = (math.sin(frame * 0.012 + i * 1.5) + 1.0) * 0.5  # 0..1
-            if glow > 0.4:
-                pyxel.line(sx, cy, sx + seg_len, cy, C_SKYBLUE)
-                # Small node dots at ends
-                pyxel.pset(sx, cy, C_SKYBLUE)
-                pyxel.pset(sx + seg_len, cy, C_SKYBLUE)
 
         # ── Hologram panels (window-style) ──
         self._draw_window_panel_large(115, BG_TOP + 30, 105, 65, frame)
