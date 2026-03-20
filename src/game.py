@@ -53,6 +53,7 @@ LOGO_UV = (90, 160)
 LOGO_W, LOGO_H = 90, 48  # stored size; drawn at 3x = 270x144
 LOGO_SCALE = 3
 from src.ui import Button, text_centered, draw_panel
+from src.background import BackgroundRenderer
 
 # Working screen messages (module-level to avoid per-frame allocation)
 _NAVIKO_WORKING_MSGS = [
@@ -73,9 +74,12 @@ class Game:
         # Load sprite sheet into image bank 0
         pyxel.images[0].load(0, 0, _SPRITE_FILE)
 
-        # Load background/logo sheet into image bank 1
+        # Load background/logo sheet into image bank 1 (used for title logo)
         if os.path.exists(_BG_SPRITE_FILE):
             pyxel.images[1].load(0, 0, _BG_SPRITE_FILE)
+
+        # Background renderer (code-drawn, replaces bg_sprites for office scenes)
+        self.bg_renderer = BackgroundRenderer()
 
         # Scene
         self.scene = "title"
@@ -1145,11 +1149,8 @@ class Game:
             yr, mo, _ = self._week_to_date(self.week)
             pyxel.text(200, 7, f"{yr}年{mo}月", C_GRAY, self.font_s)
 
-        # Office area - background image based on office level
-        bg_uv = BG_UV.get(self.office_level, (0, 0))
-        pyxel.blt(0, 24, 1,
-                  bg_uv[0], bg_uv[1], BG_DRAW_W, BG_DRAW_H,
-                  scale=BG_SCALE)
+        # Office area - procedural background based on office level
+        self.bg_renderer.draw(self.office_level, pyxel.frame_count)
 
         # Agent on top of background
         if self.agents:
