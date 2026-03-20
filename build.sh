@@ -22,9 +22,16 @@ else
     echo "[1/4] スキップ（build_sprites.py なし）"
 fi
 
-# 2. pyxapp をパッケージ
+# 2. pyxapp をパッケージ（不要ファイルを一時退避して除外）
 echo "[2/4] pyxapp パッケージング..."
+mkdir -p /tmp/_build_backup
+mv assets/originals /tmp/_build_backup/originals
+[ -f automation-empire.pyxapp ] && mv automation-empire.pyxapp /tmp/_build_backup/
+[ -f automation-empire.html ] && mv automation-empire.html /tmp/_build_backup/
+[ -f .pyxignore ] && mv .pyxignore /tmp/_build_backup/
 pyxel package . main.py
+mv /tmp/_build_backup/originals assets/originals
+rm -rf /tmp/_build_backup
 
 # 3. HTML 生成
 echo "[3/4] HTML 生成..."
