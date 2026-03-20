@@ -119,32 +119,44 @@ class BackgroundRenderer:
         # ── Perspective grid floor ──
         horizon_y = BG_TOP + 110
         floor_bottom = BG_BOTTOM
+        floor_span = floor_bottom - horizon_y  # 130px
         cx = WIDTH // 2  # vanishing point x (center)
-        vp_y = horizon_y  # vanishing point y
+        # Vanishing point placed ABOVE the horizon so lines at the horizon
+        # are already spread out, giving a gentler perspective
+        vp_y = horizon_y - 80
 
         # Horizontal grid lines (wider spacing, exponential)
         # All solid lines — depth expressed by color only (dark→bright)
         num_hlines = 8
-        floor_span = floor_bottom - horizon_y
         for i in range(num_hlines):
             t = (i + 1) / (num_hlines + 1)
             y = int(horizon_y + floor_span * (t * t))
             col = C_NAVY if i < 5 else C_DGRAY
             pyxel.line(0, y, WIDTH - 1, y, col)
 
-        # Vertical grid lines: fan out from vanishing point
-        # All solid — far portion dark (C_NAVY), near portion brighter (C_DGRAY)
+        # Vertical grid lines: fan out from vanishing point (above horizon)
+        # Lines are clipped to start at horizon_y
         num_vlines = 30
-        overshoot = 800
-        split_y = horizon_y + floor_span * 2 // 5  # 40% from horizon
-        split_t = (split_y - vp_y) / max(floor_bottom - vp_y, 1)
+        overshoot = 400
+        total_span = floor_bottom - vp_y  # distance from VP to bottom
+
+        # Color split at 40% down from horizon
+        split_y = horizon_y + floor_span * 2 // 5
+        split_t = (split_y - vp_y) / total_span
+        # Clip top to horizon
+        top_t = (horizon_y - vp_y) / total_span
+
         for i in range(num_vlines + 1):
             bx = int(-overshoot + i * (WIDTH + overshoot * 2) / num_vlines)
+
+            # x at horizon (top of visible floor)
+            top_x = int(cx + (bx - cx) * top_t)
+            # x at color split point
             split_x = int(cx + (bx - cx) * split_t)
 
-            # Far segment: solid, very dark
-            pyxel.line(cx, vp_y, split_x, split_y, C_NAVY)
-            # Near segment: solid, slightly brighter
+            # Far segment (horizon to split): dark
+            pyxel.line(top_x, horizon_y, split_x, split_y, C_NAVY)
+            # Near segment (split to bottom): brighter
             pyxel.line(split_x, split_y, bx, floor_bottom, C_DGRAY)
 
         # ── Hologram panels (window-style) ──
