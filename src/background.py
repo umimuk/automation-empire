@@ -23,13 +23,12 @@ BG_BOTTOM = BG_TOP + BG_HEIGHT
 
 class Particle:
     """A single floating light particle."""
-    __slots__ = ('x', 'y', 'vx', 'vy', 'phase', 'size')
+    __slots__ = ('x', 'y', 'vy_base', 'phase', 'size')
 
-    def __init__(self, x, y, vx, vy, phase, size):
+    def __init__(self, x, y, vy_base, phase, size):
         self.x = x
         self.y = y
-        self.vx = vx
-        self.vy = vy
+        self.vy_base = vy_base
         self.phase = phase
         self.size = size
 
@@ -39,18 +38,33 @@ class BackgroundRenderer:
 
     def __init__(self):
         self.particles = self._create_particles(24)
+        # Level-0 specific: 5 gentle floating particles in upper space
+        self._lv0_particles = self._create_lv0_particles()
 
     def _create_particles(self, count):
-        """Create a pool of particles with random positions."""
+        """Create a pool of particles with random positions (general use)."""
         pts = []
         for _ in range(count):
             pts.append(Particle(
                 x=random.random() * WIDTH,
                 y=random.random() * BG_HEIGHT + BG_TOP,
-                vx=(random.random() - 0.5) * 0.3,
-                vy=-random.random() * 0.2 - 0.05,
+                vy_base=(random.random() - 0.5) * 0.15,
                 phase=random.random() * 6.283,
                 size=random.choice([0, 0, 0, 1]),
+            ))
+        return pts
+
+    def _create_lv0_particles(self):
+        """Create 5 gentle floating particles for level 0 upper space."""
+        rng = random.Random(55)
+        pts = []
+        for _ in range(5):
+            pts.append(Particle(
+                x=rng.randint(15, WIDTH - 15),
+                y=rng.randint(BG_TOP + 10, BG_TOP + 100),
+                vy_base=rng.choice([-0.04, -0.03, 0.03, 0.04]),
+                phase=rng.random() * 6.283,
+                size=0,
             ))
         return pts
 
@@ -67,146 +81,216 @@ class BackgroundRenderer:
         )
         idx = min(office_level, len(draw_fn) - 1)
         draw_fn[idx](frame)
-        self._draw_particles(frame, office_level)
+        # Level 0 handles its own particles; others use general particles
+        if idx > 0:
+            self._draw_particles(frame, idx)
 
-    # ── Level 0: 自宅の一角 ──
+    # ── Helpers ──
+
+    @staticmethod
+    def _draw_dashed_line(x0, y0, x1, y1, col, dash=1, gap=1):
+        """Draw a dashed line (1px on, 1px off) using pset."""
+        dx = x1 - x0
+        dy = y1 - y0
+        length = max(abs(dx), abs(dy), 1)
+        on = True
+        count = 0
+        for i in range(length + 1):
+            t = i / length if length > 0 else 0
+            px = int(x0 + dx * t)
+            py = int(y0 + dy * t)
+            if on:
+                pyxel.pset(px, py, col)
+            count += 1
+            if on and count >= dash:
+                on = False
+                count = 0
+            elif not on and count >= gap:
+                on = True
+                count = 0
+
+    # ── Level 0: サイバー空間 ──
 
     def _draw_level0(self, frame):
-        """Home corner - dark cyber space with hologram panels and perspective grid."""
+        """Cyber space with perspective grid floor, window panels, circuit traces."""
         # Full black background
         pyxel.rect(0, BG_TOP, WIDTH, BG_HEIGHT, C_BLACK)
 
-        # ── Perspective grid floor (lower half) ──
-        horizon_y = BG_TOP + 120  # horizon line
+        # ── Perspective grid floor ──
+        horizon_y = BG_TOP + 110
         floor_bottom = BG_BOTTOM
+        cx = WIDTH // 2  # vanishing point x (center)
+        vp_y = horizon_y  # vanishing point y
 
-        # Horizontal grid lines (closer together near horizon, wider at bottom)
-        num_hlines = 10
+        # Horizontal grid lines (exponential spacing, closer near horizon)
+        num_hlines = 14
         for i in range(num_hlines):
-            # Exponential spacing for perspective
             t = i / num_hlines
             y = int(horizon_y + (floor_bottom - horizon_y) * (t * t))
-            pyxel.line(0, y, WIDTH - 1, y, C_DGRAY)
+            # Far lines (near horizon) are dashed and darker
+            if i < 4:
+                self._draw_dashed_line(0, y, WIDTH - 1, y, C_NAVY)
+            elif i < 8:
+                pyxel.line(0, y, WIDTH - 1, y, C_NAVY)
+            else:
+                pyxel.line(0, y, WIDTH - 1, y, C_DGRAY)
 
-        # Vertical grid lines with perspective (converge toward center at horizon)
-        cx = WIDTH // 2  # vanishing point x
-        num_vlines = 12
+        # Vertical grid lines: fan out from vanishing point
+        num_vlines = 16
         for i in range(num_vlines + 1):
-            # Bottom x position (evenly spaced)
-            bx = int(i * WIDTH / num_vlines)
-            # At horizon, lines converge toward center
-            tx = int(cx + (bx - cx) * 0.15)
-            pyxel.line(tx, horizon_y, bx, floor_bottom, C_DGRAY)
+            # Bottom position (evenly spaced, with slight overshoot at edges)
+            bx = int(-20 + i * (WIDTH + 40) / num_vlines)
+            # At vanishing point, all lines converge to cx
+            # Use line from (cx, vp_y) to (bx, floor_bottom)
+            # Far part (near horizon): dashed; near part: solid
+            mid_y = horizon_y + (floor_bottom - horizon_y) // 3
+            mid_t = (mid_y - vp_y) / max(floor_bottom - vp_y, 1)
+            mid_x = int(cx + (bx - cx) * mid_t)
 
-        # ── Circuit pattern traces on floor (teal accents) ──
-        rng = random.Random(42)  # deterministic
-        for i in range(8):
-            # Random horizontal circuit segments
-            cy = int(horizon_y + 20 + i * 12)
-            if cy >= floor_bottom:
+            # Far segment (horizon to mid): dashed, dark
+            self._draw_dashed_line(cx, vp_y, mid_x, mid_y, C_NAVY)
+            # Near segment (mid to bottom): solid, slightly brighter
+            pyxel.line(mid_x, mid_y, bx, floor_bottom, C_DGRAY)
+
+        # ── Circuit traces on floor grid lines only ──
+        rng = random.Random(42)
+        for i in range(6):
+            # Place on horizontal grid lines
+            t = (5 + i * 1.5) / num_hlines
+            cy = int(horizon_y + (floor_bottom - horizon_y) * (t * t / (num_hlines * num_hlines / (num_hlines * num_hlines))))
+            # Simpler: pick specific y positions on lower floor
+            cy = int(horizon_y + 40 + i * 16)
+            if cy >= floor_bottom - 4:
                 break
-            sx = rng.randint(10, WIDTH - 80)
-            length = rng.randint(20, 60)
-            # Animate: some segments glow
-            glow = math.sin(frame * 0.02 + i * 1.2) > 0.3
-            col = C_SKYBLUE if glow else C_NAVY
-            pyxel.line(sx, cy, sx + length, cy, col)
-            # Small vertical branch
-            if rng.random() > 0.4:
-                branch_len = rng.randint(4, 12)
-                bx = sx + rng.randint(5, length - 2) if length > 7 else sx + 3
-                pyxel.line(bx, cy, bx, cy + branch_len, col)
-            # Dot nodes at ends
-            if glow:
+            sx = rng.randint(20, WIDTH - 70)
+            seg_len = rng.randint(15, 45)
+            # Slow pulsing glow (not flickering)
+            glow = (math.sin(frame * 0.012 + i * 1.5) + 1.0) * 0.5  # 0..1
+            if glow > 0.4:
+                pyxel.line(sx, cy, sx + seg_len, cy, C_SKYBLUE)
+                # Small node dots at ends
                 pyxel.pset(sx, cy, C_SKYBLUE)
-                pyxel.pset(sx + length, cy, C_SKYBLUE)
+                pyxel.pset(sx + seg_len, cy, C_SKYBLUE)
 
-        # ── Floating text fragments on floor (data residue) ──
-        rng2 = random.Random(99)
-        for i in range(4):
-            ty = int(horizon_y + 30 + i * 22)
-            if ty >= floor_bottom - 5:
-                break
-            tx = rng2.randint(5, WIDTH - 90)
-            vis = math.sin(frame * 0.015 + i * 2.0) > 0.2
-            if vis:
-                # Tiny data lines (just short horizontal marks)
-                for j in range(rng2.randint(2, 4)):
-                    lw = rng2.randint(8, 25)
-                    pyxel.line(tx + j * 4, ty + j * 4, tx + j * 4 + lw, ty + j * 4, C_NAVY)
+        # ── Hologram panels (window-style) ──
+        self._draw_window_panel_large(115, BG_TOP + 30, 105, 65, frame)
+        self._draw_window_panel_small(25, BG_TOP + 62, 55, 34, frame, phase=0.0)
+        self._draw_window_panel_small(180, BG_TOP + 75, 48, 28, frame, phase=2.0)
 
-        # ── Hologram panels (floating in upper dark space) ──
+        # ── Floating particles (upper space only) ──
+        self._draw_lv0_particles(frame)
 
-        # Panel 1: Large - dashboard with graph (center-right)
-        self._draw_holo_panel_large(120, BG_TOP + 36, 100, 60, frame)
-
-        # Panel 2: Small - data readout (left)
-        self._draw_holo_panel_small(28, BG_TOP + 68, 50, 30, frame, phase=0.0)
-
-        # Panel 3: Small - mini chart (right-lower)
-        self._draw_holo_panel_small(175, BG_TOP + 80, 40, 24, frame, phase=2.0)
-
-    def _draw_holo_panel_large(self, x, y, w, h, frame):
-        """Draw a large holographic panel with graph and text lines."""
-        # Semi-transparent fill (dark navy)
+    def _draw_window_panel_large(self, x, y, w, h, frame):
+        """Draw a large window-style panel with title bar, close button, data."""
+        # Background fill (very dark)
         pyxel.rect(x + 1, y + 1, w - 2, h - 2, C_NAVY)
-        # Teal border
+        # Border
         pyxel.rectb(x, y, w, h, C_SKYBLUE)
 
-        # Title bar line
-        pyxel.line(x + 4, y + 4, x + w // 2 + 10, y + 4, C_SKYBLUE)
+        # Title bar (top 5px strip)
+        tb_h = 5
+        pyxel.rect(x + 1, y + 1, w - 2, tb_h, C_DGRAY)
+        # Title bar accent line
+        pyxel.line(x + 3, y + 2, x + 25, y + 2, C_SKYBLUE)
+        # Close button (3x3 square at right end of title bar)
+        cb_x = x + w - 6
+        cb_y = y + 1
+        pyxel.rectb(cb_x, cb_y, 4, 4, C_SKYBLUE)
 
-        # Text lines (left side)
+        # Content area starts below title bar
+        content_y = y + tb_h + 2
+
+        # Left side: text data lines (8 lines)
         rng = random.Random(77)
-        for i in range(5):
-            ly = y + 10 + i * 7
-            lw = rng.randint(15, 40)
-            col = C_SKYBLUE if (frame // 40 + i) % 3 != 0 else C_NAVY
-            pyxel.line(x + 6, ly, x + 6 + lw, ly, col)
-
-        # Bar chart (right side)
-        chart_x = x + w // 2 + 8
-        chart_bottom = y + h - 6
-        for i in range(5):
-            bh = rng.randint(6, 28)
-            # Animate bars slightly
-            anim = math.sin(frame * 0.03 + i * 0.8) * 3
-            bh = max(4, int(bh + anim))
-            bx = chart_x + i * 8
-            pyxel.rect(bx, chart_bottom - bh, 5, bh, C_SKYBLUE)
-        # Chart baseline
-        pyxel.line(chart_x - 2, chart_bottom, chart_x + 42, chart_bottom, C_DGRAY)
-
-    def _draw_holo_panel_small(self, x, y, w, h, frame, phase=0.0):
-        """Draw a small holographic panel with data lines."""
-        pyxel.rect(x + 1, y + 1, w - 2, h - 2, C_NAVY)
-        pyxel.rectb(x, y, w, h, C_SKYBLUE)
-
-        # Data lines
-        rng = random.Random(int(phase * 100 + 33))
-        for i in range(3):
-            ly = y + 5 + i * 7
+        for i in range(8):
+            ly = content_y + i * 6
             if ly >= y + h - 4:
                 break
-            lw = rng.randint(10, w - 12)
-            col = C_SKYBLUE if math.sin(frame * 0.025 + phase + i) > 0.0 else C_NAVY
+            lw = rng.randint(10, 38)
+            # Animate: some lines blink slowly
+            vis = math.sin(frame * 0.018 + i * 0.9) > -0.3
+            col = C_SKYBLUE if vis else C_NAVY
             pyxel.line(x + 4, ly, x + 4 + lw, ly, col)
 
-        # Tiny bar or dot accent
-        if h > 20:
-            for i in range(3):
-                bh = rng.randint(3, 10)
-                bx = x + w - 16 + i * 5
-                by = y + h - 4 - bh
-                if bx < x + w - 3:
-                    pyxel.rect(bx, by, 3, bh, C_SKYBLUE)
+        # Right side: bar chart (8 bars)
+        chart_x = x + w // 2 + 6
+        chart_bottom = y + h - 5
+        num_bars = 8
+        for i in range(num_bars):
+            bh = rng.randint(5, 30)
+            anim = math.sin(frame * 0.025 + i * 0.7) * 2
+            bh = max(3, int(bh + anim))
+            bx = chart_x + i * 6
+            if bx + 4 > x + w - 3:
+                break
+            pyxel.rect(bx, chart_bottom - bh, 4, bh, C_SKYBLUE)
+        # Chart baseline
+        pyxel.line(chart_x - 1, chart_bottom, min(chart_x + num_bars * 6, x + w - 3), chart_bottom, C_DGRAY)
+
+    def _draw_window_panel_small(self, x, y, w, h, frame, phase=0.0):
+        """Draw a small window-style panel with title bar and data."""
+        # Background
+        pyxel.rect(x + 1, y + 1, w - 2, h - 2, C_NAVY)
+        # Border
+        pyxel.rectb(x, y, w, h, C_SKYBLUE)
+
+        # Title bar
+        tb_h = 4
+        pyxel.rect(x + 1, y + 1, w - 2, tb_h, C_DGRAY)
+        pyxel.line(x + 3, y + 2, x + 15, y + 2, C_SKYBLUE)
+        # Close button
+        cb_x = x + w - 5
+        pyxel.rectb(cb_x, y + 1, 3, 3, C_SKYBLUE)
+
+        # Content: data lines
+        content_y = y + tb_h + 2
+        rng = random.Random(int(phase * 100 + 33))
+        for i in range(5):
+            ly = content_y + i * 5
+            if ly >= y + h - 4:
+                break
+            lw = rng.randint(8, w - 14)
+            vis = math.sin(frame * 0.02 + phase + i * 0.8) > -0.2
+            col = C_SKYBLUE if vis else C_NAVY
+            pyxel.line(x + 3, ly, x + 3 + lw, ly, col)
+
+        # Mini bar chart at bottom
+        if h > 22:
+            chart_bottom = y + h - 3
+            for i in range(4):
+                bh = rng.randint(2, 8)
+                bx = x + w - 20 + i * 5
+                if bx + 3 > x + w - 2:
+                    break
+                pyxel.rect(bx, chart_bottom - bh, 3, bh, C_SKYBLUE)
+
+    def _draw_lv0_particles(self, frame):
+        """Draw gentle floating particles in the upper dark space for level 0."""
+        upper_top = BG_TOP + 5
+        upper_bottom = BG_TOP + 105  # above horizon
+
+        for i, p in enumerate(self._lv0_particles):
+            # Slow vertical drift (sine-based oscillation)
+            p.y += math.sin(frame * 0.015 + p.phase) * 0.08
+
+            # Wrap within upper space
+            if p.y < upper_top:
+                p.y = upper_bottom - 1
+            elif p.y >= upper_bottom:
+                p.y = upper_top + 1
+
+            # Soft blink (mostly visible, gentle fade)
+            alpha = math.sin(frame * 0.02 + p.phase)
+            if alpha > -0.5:
+                col = C_SKYBLUE if i % 2 == 0 else C_DGRAY
+                ix, iy = int(p.x), int(p.y)
+                pyxel.pset(ix, iy, col)
 
     # ── Level 1-4: Placeholder (to be implemented) ──
 
     def _draw_level1(self, frame):
         """Placeholder: ワンルーム."""
         pyxel.rect(0, BG_TOP, WIDTH, BG_HEIGHT, C_BLACK)
-        # Simple grid
         for x in range(0, WIDTH, 20):
             pyxel.line(x, BG_TOP, x, BG_BOTTOM, C_NAVY)
         for y in range(BG_TOP, BG_BOTTOM, 20):
@@ -236,42 +320,33 @@ class BackgroundRenderer:
         for y in range(BG_TOP, BG_BOTTOM, 12):
             pyxel.line(0, y, WIDTH, y, C_PURPLE)
 
-    # ── Particles ──
+    # ── Particles (for levels 1-4) ──
 
     def _draw_particles(self, frame, level):
-        """Animate and draw floating light particles."""
-        # Particle count and colors per level
-        counts = (5, 8, 12, 16, 20)
+        """Animate and draw floating light particles (levels 1-4)."""
+        counts = (0, 8, 12, 16, 20)  # level 0 uses its own particles
         palettes = (
-            (C_SKYBLUE, C_DGRAY, C_NAVY),                # 0: teal data motes
-            (C_GRAY, C_SKYBLUE),                      # 1: cool
-            (C_SKYBLUE, C_GREEN),                     # 2: digital
-            (C_SKYBLUE, C_YELLOW, C_GREEN),           # 3: vibrant
+            (C_SKYBLUE,),                              # 0: unused
+            (C_GRAY, C_SKYBLUE),                       # 1: cool
+            (C_SKYBLUE, C_GREEN),                      # 2: digital
+            (C_SKYBLUE, C_YELLOW, C_GREEN),            # 3: vibrant
             (C_YELLOW, C_WHITE, C_SKYBLUE, C_LAVENDER),  # 4: radiant
         )
 
         lvl = min(level, 4)
         count = counts[lvl]
+        if count == 0:
+            return
         colors = palettes[lvl]
 
         for i in range(min(count, len(self.particles))):
             p = self.particles[i]
-
-            # Move
-            p.x += p.vx
-            p.y += p.vy
-
-            # Wrap
-            if p.x < 0:
-                p.x = WIDTH - 1
-            elif p.x >= WIDTH:
-                p.x = 0
+            p.y += p.vy_base
             if p.y < BG_TOP:
                 p.y = BG_BOTTOM - 1
             elif p.y >= BG_BOTTOM:
                 p.y = BG_TOP
 
-            # Blink
             alpha = math.sin(frame * 0.03 + p.phase)
             if alpha > -0.2:
                 col = colors[i % len(colors)]
