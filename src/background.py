@@ -137,11 +137,11 @@ class BackgroundRenderer:
                 pyxel.line(0, y, WIDTH - 1, y, C_DGRAY)
 
         # Vertical grid lines: fan out from vanishing point, full width coverage
-        # Many lines so even far-away area has lines reaching left/right edges
+        # Overshoot must be large enough that interpolated x covers 0..WIDTH
+        # at every y level (especially mid_y where x = cx + (bx-cx)*1/3)
         num_vlines = 30
+        overshoot = 300  # lines at bottom span from -300 to WIDTH+300
         for i in range(num_vlines + 1):
-            # Bottom positions spread wider than screen to fill edges
-            overshoot = 80
             bx = int(-overshoot + i * (WIDTH + overshoot * 2) / num_vlines)
 
             # Draw from vanishing point (cx, vp_y) to bottom (bx, floor_bottom)
