@@ -48,8 +48,9 @@ BG_FILENAMES = ["bg_stage1.png", "bg_stage2.png", "bg_stage3.png",
 BG_SIZE = (90, 80)   # stored size; drawn at 3x = 270x240
 BG_POSITIONS = [(0, 0), (90, 0), (0, 80), (90, 80), (0, 160)]
 LOGO_FILENAME = "title_logo.png"
-LOGO_WIDTH = 90       # stored width; drawn at 3x = 270
-LOGO_POS = (90, 160)  # position in bg sprite sheet
+LOGO_WIDTH = 135      # stored width; drawn at 2x = 270
+LOGO_HEIGHT = 72      # stored height; drawn at 2x = 144
+LOGO_POS = (0, 0)     # position in bg sprite sheet (bg stages unused now)
 
 
 def color_distance(c1, c2):
@@ -216,18 +217,19 @@ def process_background(filepath, target_size):
     return result
 
 
-def process_logo(filepath, target_width):
+def process_logo(filepath, target_width, target_height=None):
     """Process logo: crop watermark, resize, 16-color. Transparent → colkey."""
     img = Image.open(filepath).convert("RGBA")
     w, h = img.size
     img = img.crop((0, 0, w - WATERMARK_CROP, h - WATERMARK_CROP))
-    ratio = target_width / img.width
-    target_h = int(img.height * ratio)
-    img = img.resize((target_width, target_h), Image.LANCZOS)
-    result = Image.new("RGB", (target_width, target_h))
+    if target_height is None:
+        ratio = target_width / img.width
+        target_height = int(img.height * ratio)
+    img = img.resize((target_width, target_height), Image.LANCZOS)
+    result = Image.new("RGB", (target_width, target_height))
     src = img.load()
     dst = result.load()
-    for y in range(target_h):
+    for y in range(target_height):
         for x in range(target_width):
             r, g, b, a = src[x, y]
             if a < 80:
@@ -235,7 +237,7 @@ def process_logo(filepath, target_width):
             else:
                 idx = nearest_palette_color(r, g, b)
                 dst[x, y] = PYXEL_PALETTE[idx]
-    return result, (target_width, target_h)
+    return result, (target_width, target_height)
 
 
 def build_backgrounds():
@@ -258,8 +260,8 @@ def build_backgrounds():
 
     logo_path = os.path.join(orig_dir, LOGO_FILENAME)
     if os.path.exists(logo_path):
-        print(f"Processing {LOGO_FILENAME} → width={LOGO_WIDTH}...")
-        logo, logo_size = process_logo(logo_path, LOGO_WIDTH)
+        print(f"Processing {LOGO_FILENAME} → {LOGO_WIDTH}x{LOGO_HEIGHT}...")
+        logo, logo_size = process_logo(logo_path, LOGO_WIDTH, LOGO_HEIGHT)
         sheet.paste(logo, LOGO_POS)
         print(f"  → at {LOGO_POS}, size={logo_size}")
 

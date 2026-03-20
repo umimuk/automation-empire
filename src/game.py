@@ -49,9 +49,9 @@ BG_UV = {
 BG_DRAW_W, BG_DRAW_H = 90, 80
 BG_SCALE = 3
 # Logo UV in bank 1
-LOGO_UV = (90, 160)
-LOGO_W, LOGO_H = 90, 48  # stored size; drawn at 3x = 270x144
-LOGO_SCALE = 3
+LOGO_UV = (0, 0)
+LOGO_W, LOGO_H = 135, 72  # stored size; drawn at 2x = 270x144
+LOGO_SCALE = 2
 from src.ui import Button, text_centered, draw_panel
 from src.background import BackgroundRenderer
 
@@ -1090,7 +1090,8 @@ class Game:
             fn()
 
     def draw_title(self):
-        pyxel.cls(C_BLACK)
+        # Particle-decorated background
+        self.bg_renderer.draw_title_bg(pyxel.frame_count)
         # Logo image (centered, upper area)
         logo_draw_w = LOGO_W * LOGO_SCALE  # 270
         logo_x = (WIDTH - logo_draw_w) // 2
