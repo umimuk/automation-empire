@@ -72,121 +72,134 @@ class BackgroundRenderer:
     # ── Level 0: 自宅の一角 ──
 
     def _draw_level0(self, frame):
-        """Home corner - dark cozy room with desk and monitor."""
-        # Dark room base
+        """Home corner - dark cyber space with hologram panels and perspective grid."""
+        # Full black background
         pyxel.rect(0, BG_TOP, WIDTH, BG_HEIGHT, C_BLACK)
 
-        # Faint grid on wall (cyberpunk hint)
-        for x in range(0, WIDTH, 27):
-            pyxel.line(x, BG_TOP, x, BG_TOP + 155, C_NAVY)
-        for y in range(BG_TOP, BG_TOP + 156, 27):
-            pyxel.line(0, y, WIDTH, y, C_NAVY)
+        # ── Perspective grid floor (lower half) ──
+        horizon_y = BG_TOP + 120  # horizon line
+        floor_bottom = BG_BOTTOM
 
-        # Floor
-        floor_y = BG_TOP + 156
-        pyxel.rect(0, floor_y, WIDTH, BG_BOTTOM - floor_y, C_BROWN)
-        # Floor highlight line
-        pyxel.line(0, floor_y, WIDTH, floor_y, C_DGRAY)
-        # Floor texture - subtle horizontal lines
-        for fy in range(floor_y + 12, BG_BOTTOM, 12):
-            pyxel.line(0, fy, WIDTH, fy, C_DGRAY)
+        # Horizontal grid lines (closer together near horizon, wider at bottom)
+        num_hlines = 10
+        for i in range(num_hlines):
+            # Exponential spacing for perspective
+            t = i / num_hlines
+            y = int(horizon_y + (floor_bottom - horizon_y) * (t * t))
+            pyxel.line(0, y, WIDTH - 1, y, C_DGRAY)
 
-        # ── Desk ──
-        desk_x, desk_w = 55, 160
-        desk_top = BG_TOP + 130
-        desk_h = 26
-        # Desk surface
-        pyxel.rect(desk_x, desk_top, desk_w, desk_h, C_DGRAY)
-        pyxel.rectb(desk_x, desk_top, desk_w, desk_h, C_GRAY)
-        # Desk legs
-        pyxel.rect(desk_x + 6, desk_top + desk_h, 6, 20, C_DGRAY)
-        pyxel.rect(desk_x + desk_w - 12, desk_top + desk_h, 6, 20, C_DGRAY)
+        # Vertical grid lines with perspective (converge toward center at horizon)
+        cx = WIDTH // 2  # vanishing point x
+        num_vlines = 12
+        for i in range(num_vlines + 1):
+            # Bottom x position (evenly spaced)
+            bx = int(i * WIDTH / num_vlines)
+            # At horizon, lines converge toward center
+            tx = int(cx + (bx - cx) * 0.15)
+            pyxel.line(tx, horizon_y, bx, floor_bottom, C_DGRAY)
 
-        # ── Monitor ──
-        mon_x = desk_x + 55
-        mon_w, mon_h = 50, 36
-        mon_y = desk_top - mon_h - 6
-        # Monitor body
-        pyxel.rect(mon_x, mon_y, mon_w, mon_h, C_DGRAY)
-        pyxel.rectb(mon_x, mon_y, mon_w, mon_h, C_GRAY)
-        # Screen with glow animation
-        glow = math.sin(frame * 0.04) * 0.5 + 0.5
-        screen_col = C_SKYBLUE if glow > 0.5 else C_NAVY
-        pyxel.rect(mon_x + 3, mon_y + 3, mon_w - 6, mon_h - 8, screen_col)
-        # Code lines on screen
-        if glow > 0.3:
+        # ── Circuit pattern traces on floor (teal accents) ──
+        rng = random.Random(42)  # deterministic
+        for i in range(8):
+            # Random horizontal circuit segments
+            cy = int(horizon_y + 20 + i * 12)
+            if cy >= floor_bottom:
+                break
+            sx = rng.randint(10, WIDTH - 80)
+            length = rng.randint(20, 60)
+            # Animate: some segments glow
+            glow = math.sin(frame * 0.02 + i * 1.2) > 0.3
+            col = C_SKYBLUE if glow else C_NAVY
+            pyxel.line(sx, cy, sx + length, cy, col)
+            # Small vertical branch
+            if rng.random() > 0.4:
+                branch_len = rng.randint(4, 12)
+                bx = sx + rng.randint(5, length - 2) if length > 7 else sx + 3
+                pyxel.line(bx, cy, bx, cy + branch_len, col)
+            # Dot nodes at ends
+            if glow:
+                pyxel.pset(sx, cy, C_SKYBLUE)
+                pyxel.pset(sx + length, cy, C_SKYBLUE)
+
+        # ── Floating text fragments on floor (data residue) ──
+        rng2 = random.Random(99)
+        for i in range(4):
+            ty = int(horizon_y + 30 + i * 22)
+            if ty >= floor_bottom - 5:
+                break
+            tx = rng2.randint(5, WIDTH - 90)
+            vis = math.sin(frame * 0.015 + i * 2.0) > 0.2
+            if vis:
+                # Tiny data lines (just short horizontal marks)
+                for j in range(rng2.randint(2, 4)):
+                    lw = rng2.randint(8, 25)
+                    pyxel.line(tx + j * 4, ty + j * 4, tx + j * 4 + lw, ty + j * 4, C_NAVY)
+
+        # ── Hologram panels (floating in upper dark space) ──
+
+        # Panel 1: Large - dashboard with graph (center-right)
+        self._draw_holo_panel_large(120, BG_TOP + 36, 100, 60, frame)
+
+        # Panel 2: Small - data readout (left)
+        self._draw_holo_panel_small(28, BG_TOP + 68, 50, 30, frame, phase=0.0)
+
+        # Panel 3: Small - mini chart (right-lower)
+        self._draw_holo_panel_small(175, BG_TOP + 80, 40, 24, frame, phase=2.0)
+
+    def _draw_holo_panel_large(self, x, y, w, h, frame):
+        """Draw a large holographic panel with graph and text lines."""
+        # Semi-transparent fill (dark navy)
+        pyxel.rect(x + 1, y + 1, w - 2, h - 2, C_NAVY)
+        # Teal border
+        pyxel.rectb(x, y, w, h, C_SKYBLUE)
+
+        # Title bar line
+        pyxel.line(x + 4, y + 4, x + w // 2 + 10, y + 4, C_SKYBLUE)
+
+        # Text lines (left side)
+        rng = random.Random(77)
+        for i in range(5):
+            ly = y + 10 + i * 7
+            lw = rng.randint(15, 40)
+            col = C_SKYBLUE if (frame // 40 + i) % 3 != 0 else C_NAVY
+            pyxel.line(x + 6, ly, x + 6 + lw, ly, col)
+
+        # Bar chart (right side)
+        chart_x = x + w // 2 + 8
+        chart_bottom = y + h - 6
+        for i in range(5):
+            bh = rng.randint(6, 28)
+            # Animate bars slightly
+            anim = math.sin(frame * 0.03 + i * 0.8) * 3
+            bh = max(4, int(bh + anim))
+            bx = chart_x + i * 8
+            pyxel.rect(bx, chart_bottom - bh, 5, bh, C_SKYBLUE)
+        # Chart baseline
+        pyxel.line(chart_x - 2, chart_bottom, chart_x + 42, chart_bottom, C_DGRAY)
+
+    def _draw_holo_panel_small(self, x, y, w, h, frame, phase=0.0):
+        """Draw a small holographic panel with data lines."""
+        pyxel.rect(x + 1, y + 1, w - 2, h - 2, C_NAVY)
+        pyxel.rectb(x, y, w, h, C_SKYBLUE)
+
+        # Data lines
+        rng = random.Random(int(phase * 100 + 33))
+        for i in range(3):
+            ly = y + 5 + i * 7
+            if ly >= y + h - 4:
+                break
+            lw = rng.randint(10, w - 12)
+            col = C_SKYBLUE if math.sin(frame * 0.025 + phase + i) > 0.0 else C_NAVY
+            pyxel.line(x + 4, ly, x + 4 + lw, ly, col)
+
+        # Tiny bar or dot accent
+        if h > 20:
             for i in range(3):
-                lw = 10 + (i * 7 + frame // 30) % 20
-                ly = mon_y + 6 + i * 7
-                pyxel.line(mon_x + 6, ly, mon_x + 6 + lw, ly, C_GREEN)
-        # Monitor stand
-        stand_x = mon_x + mon_w // 2 - 4
-        pyxel.rect(stand_x, mon_y + mon_h, 8, 6, C_DGRAY)
-
-        # ── Keyboard on desk ──
-        kb_x = mon_x - 5
-        kb_y = desk_top + 4
-        pyxel.rect(kb_x, kb_y, 30, 8, C_DGRAY)
-        pyxel.rectb(kb_x, kb_y, 30, 8, C_GRAY)
-
-        # ── Coffee mug ──
-        mug_x = desk_x + 12
-        mug_y = desk_top + 3
-        pyxel.rect(mug_x, mug_y, 10, 12, C_BROWN)
-        pyxel.rectb(mug_x, mug_y, 10, 12, C_DGRAY)
-        # Steam animation
-        steam_offset = (frame // 8) % 3
-        pyxel.pset(mug_x + 3, mug_y - 2 - steam_offset, C_GRAY)
-        pyxel.pset(mug_x + 7, mug_y - 3 - steam_offset, C_GRAY)
-
-        # ── Small window (upper right) ──
-        win_x, win_y = 205, BG_TOP + 16
-        win_w, win_h = 44, 50
-        pyxel.rect(win_x, win_y, win_w, win_h, C_DGRAY)
-        pyxel.rectb(win_x, win_y, win_w, win_h, C_GRAY)
-        # Window cross
-        pyxel.line(win_x + win_w // 2, win_y, win_x + win_w // 2, win_y + win_h, C_GRAY)
-        pyxel.line(win_x, win_y + win_h // 2, win_x + win_w, win_y + win_h // 2, C_GRAY)
-        # Night sky
-        pyxel.rect(win_x + 2, win_y + 2, win_w // 2 - 3, win_h // 2 - 3, C_BLACK)
-        pyxel.rect(win_x + win_w // 2 + 1, win_y + 2, win_w // 2 - 3, win_h // 2 - 3, C_BLACK)
-        pyxel.rect(win_x + 2, win_y + win_h // 2 + 1, win_w // 2 - 3, win_h // 2 - 3, C_BLACK)
-        pyxel.rect(win_x + win_w // 2 + 1, win_y + win_h // 2 + 1, win_w // 2 - 3, win_h // 2 - 3, C_BLACK)
-        # Stars blinking
-        if frame % 80 < 55:
-            pyxel.pset(win_x + 8, win_y + 10, C_WHITE)
-            pyxel.pset(win_x + 32, win_y + 8, C_WHITE)
-        if frame % 90 < 40:
-            pyxel.pset(win_x + 18, win_y + 36, C_GRAY)
-
-        # ── Bookshelf (left wall) ──
-        shelf_x = 10
-        shelf_y = BG_TOP + 30
-        shelf_w, shelf_h = 35, 90
-        pyxel.rect(shelf_x, shelf_y, shelf_w, shelf_h, C_DGRAY)
-        pyxel.rectb(shelf_x, shelf_y, shelf_w, shelf_h, C_GRAY)
-        # Shelf dividers
-        for sy in range(shelf_y + 22, shelf_y + shelf_h, 22):
-            pyxel.line(shelf_x + 1, sy, shelf_x + shelf_w - 1, sy, C_GRAY)
-        # Books (colored rectangles)
-        book_colors = [C_RED, C_SKYBLUE, C_GREEN, C_PURPLE, C_ORANGE,
-                       C_YELLOW, C_PINK, C_NAVY, C_DGREEN]
-        bi = 0
-        for row in range(3):
-            by = shelf_y + 3 + row * 22
-            bx = shelf_x + 3
-            for _ in range(4):
-                bw = random.Random(bi + 42).randint(4, 7)
-                pyxel.rect(bx, by, bw, 18, book_colors[bi % len(book_colors)])
-                bx += bw + 1
-                bi += 1
-
-        # ── Ambient glow from monitor ──
-        # Soft glow on desk area
-        if glow > 0.4:
-            for dx in range(-8, 9, 4):
-                gx = mon_x + mon_w // 2 + dx
-                pyxel.pset(gx, desk_top - 2, C_NAVY)
+                bh = rng.randint(3, 10)
+                bx = x + w - 16 + i * 5
+                by = y + h - 4 - bh
+                if bx < x + w - 3:
+                    pyxel.rect(bx, by, 3, bh, C_SKYBLUE)
 
     # ── Level 1-4: Placeholder (to be implemented) ──
 
@@ -230,7 +243,7 @@ class BackgroundRenderer:
         # Particle count and colors per level
         counts = (5, 8, 12, 16, 20)
         palettes = (
-            (C_DGRAY, C_GRAY),                       # 0: dim dust
+            (C_SKYBLUE, C_DGRAY, C_NAVY),                # 0: teal data motes
             (C_GRAY, C_SKYBLUE),                      # 1: cool
             (C_SKYBLUE, C_GREEN),                     # 2: digital
             (C_SKYBLUE, C_YELLOW, C_GREEN),           # 3: vibrant
