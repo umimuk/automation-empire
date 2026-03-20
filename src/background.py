@@ -137,23 +137,23 @@ class BackgroundRenderer:
                 pyxel.line(0, y, WIDTH - 1, y, C_DGRAY)
 
         # Vertical grid lines: fan out from vanishing point, full width coverage
-        # Overshoot must be large enough that interpolated x covers 0..WIDTH
-        # at every y level (especially mid_y where x = cx + (bx-cx)*1/3)
+        # Large overshoot so lines cover full screen width at every y level
         num_vlines = 30
-        overshoot = 300  # lines at bottom span from -300 to WIDTH+300
+        overshoot = 800
         for i in range(num_vlines + 1):
             bx = int(-overshoot + i * (WIDTH + overshoot * 2) / num_vlines)
 
-            # Draw from vanishing point (cx, vp_y) to bottom (bx, floor_bottom)
-            # Split into far (dashed+very dark) and near (solid+brighter)
-            mid_y = horizon_y + floor_span // 3
-            mid_t = (mid_y - vp_y) / max(floor_bottom - vp_y, 1)
-            mid_x = int(cx + (bx - cx) * mid_t)
+            # Draw full line from vanishing point to bottom
+            # Top 20% near horizon: dashed + very dark
+            # Bottom 80%: solid + brighter
+            split_y = horizon_y + floor_span // 5
+            split_t = (split_y - vp_y) / max(floor_bottom - vp_y, 1)
+            split_x = int(cx + (bx - cx) * split_t)
 
-            # Far segment: very dark, dashed
-            self._draw_dashed_line(cx, vp_y, mid_x, mid_y, C_NAVY)
-            # Near segment: solid, slightly brighter
-            pyxel.line(mid_x, mid_y, bx, floor_bottom, C_DGRAY)
+            # Far segment (very short, near horizon): dashed, dark
+            self._draw_dashed_line(cx, vp_y, split_x, split_y, C_NAVY)
+            # Main segment: solid line
+            pyxel.line(split_x, split_y, bx, floor_bottom, C_DGRAY)
 
         # ── Hologram panels (window-style) ──
         self._draw_window_panel_large(115, BG_TOP + 30, 105, 65, frame)
