@@ -1116,9 +1116,10 @@ class Game:
                 y += 14
             if len(self.earned_titles) > 3:
                 pyxel.text(44, y, f"  他{len(self.earned_titles) - 3}個", C_GRAY, self.font_s)
+                y += 14
 
-        # Naviko comment area
-        nav_y = 236
+        # Naviko comment area (dynamic position after stats)
+        nav_y = y + 20
         pyxel.rect(0, nav_y, WIDTH, 38, C_NAVY)
         pyxel.rectb(0, nav_y, WIDTH, 38, C_DGRAY)
         self._draw_naviko_icon(2, nav_y + 3)
@@ -1127,7 +1128,8 @@ class Game:
         for i, line in enumerate(lines[:3]):
             pyxel.text(42, nav_y + 4 + i * 12, line, C_WHITE, self.font_s)
 
-        # Restart button
+        # Restart button (dynamic position below naviko)
+        self.buttons["restart"].y = nav_y + 50
         self.buttons["restart"].draw(self.font, C_DGREEN, C_WHITE, C_GREEN)
 
     # ── Draw dispatch ──
