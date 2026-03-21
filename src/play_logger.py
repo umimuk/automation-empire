@@ -157,6 +157,12 @@ class PlayLogger:
 
         print("\n" + "=" * 50)
 
+    def emit_json_summary(self):
+        """Print JSON summary with special prefix for JS analytics hook."""
+        import json
+        stats = self.get_stats_for_ending()
+        print("[PLAY_SUMMARY]" + json.dumps(stats))
+
     def get_stats_for_ending(self):
         """Return summary dict for ending screen display."""
         total_frames = sum(self.scene_frames.values()) or 1

@@ -1,6 +1,6 @@
 #!/bin/bash
 # 自動化帝国 ビルドスクリプト
-# スプライト生成 → pyxel app2html → ゲームパッド無効化 を自動で行う
+# スプライト生成 → pyxel app2html → ゲームパッド無効化 → プレイログ送信JS注入 を自動で行う
 
 set -e
 
@@ -12,18 +12,18 @@ echo "=== 自動化帝国 ビルド ==="
 # 1. スプライトシート生成（パッケージング前に実行、Pillow必須）
 if [ -f build_sprites.py ]; then
     if python3 -c "from PIL import Image" 2>/dev/null; then
-        echo "[1/4] スプライトシート生成..."
+        echo "[1/5] スプライトシート生成..."
         python3 build_sprites.py
         echo "       → OK"
     else
-        echo "[1/4] スキップ（Pillow未インストール。スプライト再生成が必要なら: pip install Pillow）"
+        echo "[1/5] スキップ（Pillow未インストール。スプライト再生成が必要なら: pip install Pillow）"
     fi
 else
-    echo "[1/4] スキップ（build_sprites.py なし）"
+    echo "[1/5] スキップ（build_sprites.py なし）"
 fi
 
 # 2. pyxapp をパッケージ（不要ファイルを一時退避して除外）
-echo "[2/4] pyxapp パッケージング..."
+echo "[2/5] pyxapp パッケージング..."
 mkdir -p /tmp/_build_backup
 mv assets/originals /tmp/_build_backup/originals
 [ -f automation-empire.pyxapp ] && mv automation-empire.pyxapp /tmp/_build_backup/
@@ -34,11 +34,11 @@ mv /tmp/_build_backup/originals assets/originals
 rm -rf /tmp/_build_backup
 
 # 3. HTML 生成
-echo "[3/4] HTML 生成..."
+echo "[3/5] HTML 生成..."
 pyxel app2html automation-empire.pyxapp
 
 # 4. バーチャルゲームパッド無効化（app2html が毎回 enabled に戻すため）
-echo "[4/4] バーチャルゲームパッド無効化..."
+echo "[4/5] バーチャルゲームパッド無効化..."
 sed -i 's/gamepad: "enabled"/gamepad: "disabled"/' automation-empire.html
 
 # 確認
@@ -47,6 +47,24 @@ if grep -q 'gamepad: "disabled"' automation-empire.html; then
 else
     echo "       → WARNING: gamepad の置換に失敗した可能性あり"
     exit 1
+fi
+
+# 5. プレイログ送信JS注入（GAS エンドポイントが設定されていれば）
+echo "[5/5] プレイログ送信JS注入..."
+GAS_ENDPOINT_FILE="$SCRIPT_DIR/gas_endpoint.txt"
+if [ -f "$GAS_ENDPOINT_FILE" ]; then
+    GAS_URL=$(cat "$GAS_ENDPOINT_FILE" | tr -d '[:space:]')
+    if [ "$GAS_URL" != "PLACEHOLDER" ] && [ -n "$GAS_URL" ]; then
+        # console.logをフックして[PLAY_SUMMARY]をGASに送信するJSを注入
+        ANALYTICS_JS="<script>(function(){var u=\"${GAS_URL}\";var o=console.log;console.log=function(){o.apply(console,arguments);var m=Array.prototype.join.call(arguments,\" \");if(m.indexOf(\"[PLAY_SUMMARY]\")===0){try{var d=JSON.parse(m.substring(14));d.session_id=Date.now().toString(36)+Math.random().toString(36).substr(2,5);d.user_agent=navigator.userAgent;fetch(u,{method:\"POST\",mode:\"no-cors\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify(d)});}catch(e){o(\"[Analytics] Error:\",e);}}};})();</script>"
+        # HTMLの末尾に追加
+        echo "$ANALYTICS_JS" >> automation-empire.html
+        echo "       → OK: analytics JS injected (GAS endpoint set)"
+    else
+        echo "       → スキップ（gas_endpoint.txt が PLACEHOLDER のまま）"
+    fi
+else
+    echo "       → スキップ（gas_endpoint.txt なし）"
 fi
 
 echo ""

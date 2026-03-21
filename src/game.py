@@ -220,6 +220,7 @@ class Game:
             # Flush play log to console
             self.play_log.scene_enter("ending", pyxel.frame_count)
             self.play_log.print_summary()
+            self.play_log.emit_json_summary()
             self._play_stats = self.play_log.get_stats_for_ending()
             if self.total_mishaps == 0:
                 earned_ids = {t["id"] for t in self.earned_titles}
