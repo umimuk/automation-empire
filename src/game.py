@@ -54,6 +54,7 @@ LOGO_W, LOGO_H = 135, 72  # stored size; drawn at 2x = 270x144
 LOGO_SCALE = 2
 from src.ui import Button, text_centered, draw_panel
 from src.background import BackgroundRenderer
+from src.play_logger import PlayLogger
 
 # Working screen messages (module-level to avoid per-frame allocation)
 _NAVIKO_WORKING_MSGS = [
@@ -80,6 +81,9 @@ class Game:
 
         # Background renderer (code-drawn, replaces bg_sprites for office scenes)
         self.bg_renderer = BackgroundRenderer()
+
+        # Play logger for balance analysis
+        self.play_log = PlayLogger()
 
         # Scene
         self.scene = "title"
@@ -145,6 +149,7 @@ class Game:
 
     def change_scene(self, scene):
         self.scene = scene
+        self.play_log.scene_enter(scene, pyxel.frame_count)
         self._setup_scene()
 
     def _setup_scene(self):
@@ -212,6 +217,10 @@ class Game:
         elif s == "ending":
             self.buttons["restart"] = Button(55, 430, 160, 40, "もう一度遊ぶ")
             self.ending_data = self._determine_ending()
+            # Flush play log to console
+            self.play_log.scene_enter("ending", pyxel.frame_count)
+            self.play_log.print_summary()
+            self._play_stats = self.play_log.get_stats_for_ending()
             if self.total_mishaps == 0:
                 earned_ids = {t["id"] for t in self.earned_titles}
                 if "perfectionist" not in earned_ids:
@@ -515,6 +524,8 @@ class Game:
                 if self.coins >= next_lv["cost"]:
                     self.coins -= next_lv["cost"]
                     self.office_level += 1
+                    self.play_log.log_purchase(
+                        self.week, "office", next_lv["name"], next_lv["cost"])
                     cur = OFFICE_LEVELS[self.office_level]
                     self.naviko_msg = (
                         f"事務所を拡張！\n"
@@ -541,6 +552,8 @@ class Game:
                 if eq["name"] not in self.owned_equip and self.coins >= eq["cost"]:
                     self.coins -= eq["cost"]
                     self.owned_equip.append(eq["name"])
+                    self.play_log.log_purchase(
+                        self.week, "equip", eq["name"], eq["cost"])
                     self.naviko_msg = (
                         f"「{eq['name']}」を購入！\n"
                         f"{eq['desc']}"
@@ -608,6 +621,7 @@ class Game:
         ]
 
         self.naviko_msg = random.choice(NAVIKO_DEFRAG)
+        self.play_log.log_turn(self.week, "defrag", coins_after=self.coins)
         self.week += 1
         self.mishap_event = None
         # Phase 5: Defrag resets streaks
@@ -647,6 +661,7 @@ class Game:
             ]
 
             self.naviko_msg = random.choice(NAVIKO_IDLE)
+            self.play_log.log_turn(self.week, "idle", coins_after=self.coins)
             self.week += 1
             self.mishap_event = None
             # Phase 5: Track idle streaks
@@ -741,6 +756,9 @@ class Game:
             self.mishap_event = mishap
             self.naviko_msg = random.choice(NAVIKO_MISHAP)
 
+            self.play_log.log_turn(
+                self.week, "job", detail=job["name"], coins_after=self.coins)
+            self.play_log.log_mishap(self.week, mishap.get("text", ""))
             self.week += 1
             self._check_levelup(a)
             self._phase5_post_turn()
@@ -798,6 +816,10 @@ class Game:
         else:
             self.turn_log.append(f"+{earned}G")
             self.naviko_msg = random.choice(NAVIKO_SUCCESS)
+
+        # Play log
+        self.play_log.log_turn(
+            self.week, "job", detail=job["name"], coins_after=self.coins)
 
         # Level up check
         self._check_levelup(a)
@@ -1000,6 +1022,7 @@ class Game:
         self.ending_data = None
         self.work_timer = 0
         self._is_defragging = False
+        self.play_log = PlayLogger()
         self._setup_scene()
 
     # Phase 5: Ending scene
@@ -1056,6 +1079,26 @@ class Game:
             pyxel.text(36, y, label, C_GRAY, self.font_s)
             pyxel.text(148, y, value, col, self.font_s)
             y += 14
+
+        # Play stats
+        ps = getattr(self, '_play_stats', None)
+        if ps:
+            y += 4
+            pyxel.line(20, y, 220, y, C_DGRAY)
+            y += 8
+            play_stats = [
+                ("プレイ時間", f"{int(ps['total_play_secs'])}秒", C_WHITE),
+                ("よく行った案件", ps["top_job"],
+                 C_GREEN if ps["top_job_count"] > 0 else C_GRAY),
+                ("案件バリエ", f"{ps['job_variety']}種", C_WHITE),
+                ("サボり", f"{ps['idle_count']}回",
+                 C_ORANGE if ps["idle_count"] >= 10 else C_WHITE),
+                ("デフラグ", f"{ps['defrag_count']}回", C_WHITE),
+            ]
+            for label, value, col in play_stats:
+                pyxel.text(36, y, label, C_GRAY, self.font_s)
+                pyxel.text(148, y, value, col, self.font_s)
+                y += 14
 
         # Titles earned
         if self.earned_titles:
