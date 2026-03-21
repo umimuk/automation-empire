@@ -293,6 +293,11 @@ class Game:
             self.year_earnings = 0
             self.pending_scenes.append("tax_event")
 
+        # Play log checkpoint (every 12 weeks)
+        if prev_week > 0 and prev_week % 12 == 0:
+            self.play_log.emit_checkpoint(
+                prev_week, self.coins, self.office_level, self.rep_rank)
+
         # Phase 5: Game end (3 years = 144 weeks)
         if self.week > GAME_LENGTH_WEEKS:
             self.pending_scenes.append("ending")

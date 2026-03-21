@@ -161,6 +161,18 @@ class PlayLogger:
         """Print JSON summary with special prefix for JS analytics hook."""
         import json
         stats = self.get_stats_for_ending()
+        stats["type"] = "ending"
+        print("[PLAY_SUMMARY]" + json.dumps(stats))
+
+    def emit_checkpoint(self, week, coins, office_level, rep_rank):
+        """Send checkpoint data at regular intervals for dropout analysis."""
+        import json
+        stats = self.get_stats_for_ending()
+        stats["type"] = "checkpoint"
+        stats["week"] = week
+        stats["coins"] = coins
+        stats["office_level"] = office_level
+        stats["rep_rank"] = rep_rank
         print("[PLAY_SUMMARY]" + json.dumps(stats))
 
     def get_stats_for_ending(self):

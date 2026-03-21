@@ -11,7 +11,12 @@ function doPost(e) {
   if (sheet.getLastRow() === 0) {
     sheet.appendRow([
       "日時",
+      "種別",
       "セッションID",
+      "週",
+      "所持金",
+      "事務所Lv",
+      "評判ランク",
       "プレイ時間(秒)",
       "総ターン数",
       "最長シーン",
@@ -28,7 +33,12 @@ function doPost(e) {
 
   sheet.appendRow([
     new Date().toISOString(),
+    data.type || "ending",
     data.session_id || "",
+    data.week || "",
+    data.coins || "",
+    data.office_level || "",
+    data.rep_rank || "",
     Math.round(data.total_play_secs || 0),
     data.total_turns || 0,
     data.top_scene || "",
