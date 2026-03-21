@@ -112,10 +112,11 @@ def process_character(filepath):
     img = Image.open(filepath).convert("RGBA")
     w, h = img.size
 
-    # Step 1: Crop out Gemini watermark (bottom-right)
-    crop_w = w - WATERMARK_CROP
-    crop_h = h - WATERMARK_CROP
-    img = img.crop((0, 0, crop_w, crop_h))
+    # Step 1: Crop out Gemini watermark (only for large images like 1024x1024)
+    if w > 512 or h > 512:
+        crop_w = w - WATERMARK_CROP
+        crop_h = h - WATERMARK_CROP
+        img = img.crop((0, 0, crop_w, crop_h))
 
     # Step 2: Find character bounding box
     bbox = find_character_bbox(img)
@@ -156,9 +157,10 @@ def process_character_small(filepath, size=32):
     img = Image.open(filepath).convert("RGBA")
     w, h = img.size
 
-    crop_w = w - WATERMARK_CROP
-    crop_h = h - WATERMARK_CROP
-    img = img.crop((0, 0, crop_w, crop_h))
+    if w > 512 or h > 512:
+        crop_w = w - WATERMARK_CROP
+        crop_h = h - WATERMARK_CROP
+        img = img.crop((0, 0, crop_w, crop_h))
 
     bbox = find_character_bbox(img)
     char_img = img.crop(bbox)
