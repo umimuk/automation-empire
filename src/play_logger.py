@@ -1,9 +1,52 @@
 """Play logger for balance analysis.
 
 Records scene transitions, player actions, and timing data.
-Outputs summary to console (print → browser devtools) and
-provides data for the ending stats screen.
+Sends data directly to GAS via fetch (WASM) or prints to console (desktop).
 """
+
+# GAS endpoint (read once at import time)
+_GAS_URL = None
+_IS_WASM = False
+try:
+    with open("gas_endpoint.txt", "r") as f:
+        _url = f.read().strip()
+        if _url and _url != "PLACEHOLDER":
+            _GAS_URL = _url
+except Exception:
+    pass
+
+try:
+    from js import XMLHttpRequest, window  # noqa: F401
+    _IS_WASM = True
+except ImportError:
+    _IS_WASM = False
+
+
+def _send_to_gas(data):
+    """Send play data to GAS endpoint via XMLHttpRequest (WASM only)."""
+    if not _GAS_URL or not _IS_WASM:
+        return
+    try:
+        import json as _json
+        import time
+        # Add session metadata
+        data["session_id"] = (
+            hex(int(time.time()))[2:]
+            + hex(id(data))[2:][:5]
+        )
+        try:
+            data["user_agent"] = str(window.navigator.userAgent)
+        except Exception:
+            data["user_agent"] = "unknown"
+
+        body = _json.dumps(data)
+        xhr = XMLHttpRequest.new()
+        xhr.open("POST", _GAS_URL, True)
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.send(body)
+        print(f"[PLAY_LOG] Sent {data.get('type', '?')} to GAS")
+    except Exception as e:
+        print(f"[PLAY_LOG] GAS send error: {e}")
 
 
 class PlayLogger:
@@ -158,11 +201,12 @@ class PlayLogger:
         print("\n" + "=" * 50)
 
     def emit_json_summary(self):
-        """Print JSON summary with special prefix for JS analytics hook."""
+        """Send ending summary to GAS (and print for debug)."""
         import json
         stats = self.get_stats_for_ending()
         stats["type"] = "ending"
         print("[PLAY_SUMMARY]" + json.dumps(stats))
+        _send_to_gas(dict(stats))
 
     def emit_checkpoint(self, week, coins, office_level, rep_rank):
         """Send checkpoint data at regular intervals for dropout analysis."""
@@ -174,6 +218,7 @@ class PlayLogger:
         stats["office_level"] = office_level
         stats["rep_rank"] = rep_rank
         print("[PLAY_SUMMARY]" + json.dumps(stats))
+        _send_to_gas(dict(stats))
 
     def get_stats_for_ending(self):
         """Return summary dict for ending screen display."""
