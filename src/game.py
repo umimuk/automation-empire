@@ -238,9 +238,9 @@ class Game:
                 self.available_jobs.append(job)
         self.selected_job = None
         self.job_scroll = 0
-        # Create job slot buttons (max 5 visible)
-        for i in range(min(len(self.available_jobs), 5)):
-            self.buttons[f"job{i}"] = Button(20, 54 + i * 66, 230, 58, "")
+        # Create job slot buttons (max 4 visible, matching draw positions)
+        for i in range(min(len(self.available_jobs), 4)):
+            self.buttons[f"job{i}"] = Button(16, 44 + i * 54, 208, 48, "")
 
     # ── Scene transition helper ──
 
