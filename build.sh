@@ -49,8 +49,19 @@ else
     exit 1
 fi
 
-# 5. プレイログ送信JS注入（GAS エンドポイントが設定されていれば）
-echo "[5/5] プレイログ送信JS注入..."
+# 5. スマホ向けCSS/meta注入（タッチ座標ズレ対策 + カーソル非表示）
+echo "[5/7] スマホ向けCSS/meta注入..."
+MOBILE_HEAD='<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>canvas{touch-action:none;cursor:none;display:block;margin:0 auto;width:100vw;height:auto;max-height:100vh;max-width:100vh*270/480}body{margin:0;padding:0;overflow:hidden;background:#000}</style>'
+# </head>の前に挿入（Pyxel HTMLに<head>がない場合は先頭に追加）
+if grep -q '</head>' automation-empire.html; then
+    sed -i "s|</head>|${MOBILE_HEAD}</head>|" automation-empire.html
+else
+    sed -i "1s|^|${MOBILE_HEAD}|" automation-empire.html
+fi
+echo "       → OK: mobile CSS/meta injected"
+
+# 6. プレイログ送信JS注入（GAS エンドポイントが設定されていれば）
+echo "[6/7] プレイログ送信JS注入..."
 GAS_ENDPOINT_FILE="$SCRIPT_DIR/gas_endpoint.txt"
 if [ -f "$GAS_ENDPOINT_FILE" ]; then
     GAS_URL=$(cat "$GAS_ENDPOINT_FILE" | tr -d '[:space:]')

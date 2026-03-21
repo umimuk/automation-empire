@@ -66,7 +66,7 @@ _NAVIKO_WORKING_MSGS = [
 class Game:
     def __init__(self):
         pyxel.init(WIDTH, HEIGHT, title="自動化帝国", quit_key=pyxel.KEY_NONE)
-        pyxel.mouse(True)
+        pyxel.mouse(False)
 
         # Fonts
         self.font = pyxel.Font(FONT_MAIN)
