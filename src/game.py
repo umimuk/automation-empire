@@ -134,6 +134,8 @@ class Game:
         self.total_mishaps = 0
         self.consecutive_mishaps = 0
         self.consecutive_idles = 0
+        self.total_idles = 0
+        self.rebellion_suppress_count = 0
         self.completed_jobs = set()
         self.earned_titles = []
         self.active_synergies = []
@@ -295,8 +297,17 @@ class Game:
 
         # Play log checkpoint (every 12 weeks)
         if prev_week > 0 and prev_week % 12 == 0:
+            agent_info = None
+            if self.agents:
+                a = self.agents[0]
+                agent_info = {
+                    "id": a["id"], "name": a["name"],
+                    "level": a["level"], "fatigue": a["fatigue"],
+                    "status": a["status"],
+                }
             self.play_log.emit_checkpoint(
-                prev_week, self.coins, self.office_level, self.rep_rank)
+                prev_week, self.coins, self.office_level, self.rep_rank,
+                agent_info=agent_info, total_mishaps=self.total_mishaps)
 
         # Phase 5: Game end (3 years = 144 weeks)
         if self.week > GAME_LENGTH_WEEKS:
@@ -672,6 +683,7 @@ class Game:
             self.mishap_event = None
             # Phase 5: Track idle streaks
             self.consecutive_idles += 1
+            self.total_idles += 1
             self.consecutive_mishaps = 0
             self._phase5_post_turn()
             self._check_post_turn_events()
@@ -1020,6 +1032,8 @@ class Game:
         self.total_mishaps = 0
         self.consecutive_mishaps = 0
         self.consecutive_idles = 0
+        self.total_idles = 0
+        self.rebellion_suppress_count = 0
         self.completed_jobs = set()
         self.earned_titles = []
         self.active_synergies = []

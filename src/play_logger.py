@@ -68,6 +68,7 @@ class PlayLogger:
         self._last_action = None     # for repeat detection
         self._repeat_count = 0
         self._repeat_warnings = []   # (action, count, week)
+        self._last_checkpoint_week = 0  # duplicate send prevention
 
     def scene_enter(self, scene_name, frame):
         """Call when entering a new scene."""
@@ -208,8 +209,15 @@ class PlayLogger:
         print("[PLAY_SUMMARY]" + json.dumps(stats))
         _send_to_gas(dict(stats))
 
-    def emit_checkpoint(self, week, coins, office_level, rep_rank):
+    def emit_checkpoint(self, week, coins, office_level, rep_rank,
+                        agent_info=None, total_mishaps=0):
         """Send checkpoint data at regular intervals for dropout analysis."""
+        # Duplicate send prevention
+        if week <= self._last_checkpoint_week:
+            print(f"[PLAY_LOG] Checkpoint week {week} already sent, skipping")
+            return
+        self._last_checkpoint_week = week
+
         import json
         stats = self.get_stats_for_ending()
         stats["type"] = "checkpoint"
@@ -217,6 +225,14 @@ class PlayLogger:
         stats["coins"] = coins
         stats["office_level"] = office_level
         stats["rep_rank"] = rep_rank
+        stats["total_mishaps"] = total_mishaps
+        # AI agent deployment info
+        if agent_info:
+            stats["agent_id"] = agent_info.get("id", "")
+            stats["agent_name"] = agent_info.get("name", "")
+            stats["agent_level"] = agent_info.get("level", 1)
+            stats["agent_fatigue"] = agent_info.get("fatigue", 0)
+            stats["agent_status"] = agent_info.get("status", "")
         print("[PLAY_SUMMARY]" + json.dumps(stats))
         _send_to_gas(dict(stats))
 
