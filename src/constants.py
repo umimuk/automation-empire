@@ -416,6 +416,9 @@ TITLES = [
     {"id": "careful", "name": "石橋慎重経営", "desc": "やらかしゼロでLv10到達"},
     {"id": "rich", "name": "札束で殴る経営", "desc": "所持金10万G到達"},
     {"id": "perfectionist", "name": "完璧主義者", "desc": "やらかし0回でクリア"},
+    {"id": "dictator", "name": "独裁者", "desc": "AI反乱を3回鎮圧"},
+    {"id": "manual_hero", "name": "人力の鬼", "desc": "AI未雇用で1年目クリア"},
+    {"id": "slacker", "name": "サボり魔", "desc": "サボりを10回やる"},
 ]
 
 # ── Phase 5: Game length ──
@@ -463,4 +466,40 @@ NAVIKO_SYNERGY = [
 NAVIKO_TITLE = [
     "おっ、称号獲得！\nやるじゃん。",
     "新しい称号だよ。\nコレクション増えたね。",
+]
+
+# ── Phase 5: AI Rebellion Event ──
+REBELLION_EVENT_CHOICES = [
+    {
+        "text": "力で鎮圧する",
+        "cost": -500,
+        "rep": 0,
+        "suppress": True,
+        "result_text": "鎮圧成功！\nAIは渋々従った。\n（-500G）",
+    },
+    {
+        "text": "交渉で解決する",
+        "gamble": True,
+        "cost": 0,
+        "rep": 1,
+        "suppress": True,
+        "result_text": "話し合いで解決！\n信頼関係が深まった。",
+        "gamble_fail_text": "交渉決裂。\nAIが暴走した。\nやらかし+5",
+        "gamble_fail_rep": -1,
+        "gamble_fail_mishaps": 5,
+        "gamble_fail_suppress": False,
+    },
+    {
+        "text": "放置する",
+        "cost": 0,
+        "rep": -1,
+        "suppress": False,
+        "result_text": "放置した結果\nAIが好き放題に。\nやらかし+5",
+        "extra_mishaps": 5,
+    },
+]
+
+NAVIKO_REBELLION = [
+    "ちょっとボス！\nAIが反乱してるよ！\nどうする？",
+    "やばい、AIが反旗！\n早くなんとかして！",
 ]

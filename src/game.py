@@ -20,6 +20,7 @@ from src.constants import (
     NAVIKO_RANKUP, NAVIKO_TAX,
     SYNERGIES, TITLES, ENDINGS, GAME_LENGTH_WEEKS,
     NAVIKO_SYNERGY, NAVIKO_TITLE,
+    REBELLION_EVENT_CHOICES, NAVIKO_REBELLION,
 )
 
 # Sprite sheet layout: each sprite 64x64, colkey=0 (black)
@@ -216,6 +217,10 @@ class Game:
             for i in range(4):
                 self.buttons[f"tax{i}"] = Button(16, 180 + i * 60, 238, 52, "")
             self._scene_comment = random.choice(NAVIKO_TAX)
+        elif s == "rebellion":
+            for i in range(3):
+                self.buttons[f"reb{i}"] = Button(16, 200 + i * 60, 238, 52, "")
+            self._scene_comment = random.choice(NAVIKO_REBELLION)
         elif s == "ending":
             self.buttons["restart"] = Button(55, 430, 160, 40, "もう一度遊ぶ")
             self.ending_data = self._determine_ending()
@@ -294,6 +299,10 @@ class Game:
             self.tax_year_income = self.year_earnings
             self.year_earnings = 0
             self.pending_scenes.append("tax_event")
+
+        # Rebellion event (consecutive mishaps >= 4 and have an agent)
+        if self.consecutive_mishaps >= 4 and self.agents:
+            self.pending_scenes.append("rebellion")
 
         # Play log checkpoint (every 12 weeks)
         if prev_week > 0 and prev_week % 12 == 0:
@@ -448,6 +457,47 @@ class Game:
     def update_rankup(self):
         if self.buttons["cont"].clicked():
             self._next_scene()
+
+    def update_rebellion(self):
+        for i, rc in enumerate(REBELLION_EVENT_CHOICES):
+            key = f"reb{i}"
+            if key in self.buttons and self.buttons[key].clicked():
+                self._apply_rebellion(rc)
+                self._next_scene()
+                return
+
+    def _apply_rebellion(self, choice):
+        """Apply rebellion event choice."""
+        if choice.get("gamble", False):
+            if random.random() < 0.5:
+                # Success
+                suppress = choice.get("suppress", False)
+                rep = choice.get("rep", 0)
+                result_text = choice.get("result_text", "")
+            else:
+                # Fail
+                suppress = choice.get("gamble_fail_suppress", False)
+                rep = choice.get("gamble_fail_rep", 0)
+                result_text = choice.get("gamble_fail_text", "")
+                extra = choice.get("gamble_fail_mishaps", 0)
+                self.total_mishaps += extra
+        else:
+            suppress = choice.get("suppress", False)
+            rep = choice.get("rep", 0)
+            result_text = choice.get("result_text", "")
+            extra = choice.get("extra_mishaps", 0)
+            if extra:
+                self.total_mishaps += extra
+
+        cost = choice.get("cost", 0)
+        self.coins = max(0, self.coins + cost)
+        self.rep_rank = max(0, min(len(REP_RANKS) - 1, self.rep_rank + rep))
+
+        if suppress:
+            self.rebellion_suppress_count += 1
+            self.consecutive_mishaps = 0
+
+        self.naviko_msg = result_text
 
     def update_tax_event(self):
         for i, tc in enumerate(TAX_EVENT_CHOICES):
@@ -967,6 +1017,13 @@ class Game:
                         and self.total_mishaps == 0):
                     earned = True
             elif tid == "rich" and self.coins >= 100000:
+                earned = True
+            elif tid == "dictator" and self.rebellion_suppress_count >= 3:
+                earned = True
+            elif tid == "manual_hero":
+                if not self.agents and self.week >= 48:
+                    earned = True
+            elif tid == "slacker" and self.total_idles >= 10:
                 earned = True
             # "perfectionist" is checked at ending only
             if earned:
@@ -1507,6 +1564,42 @@ class Game:
                 pyxel.rect(btn.x, btn.y, btn.w, btn.h, bg)
                 pyxel.rectb(btn.x, btn.y, btn.w, btn.h, border)
                 pyxel.text(btn.x + 8, btn.y + (btn.h - 12) // 2, tax_labels[i], C_WHITE, self.font_s)
+
+    def draw_rebellion(self):
+        pyxel.cls(C_BLACK)
+
+        text_centered(10, "⚠ AI反乱発生！", C_RED, self.font)
+        pyxel.line(0, 28, WIDTH, 28, C_DGRAY)
+
+        text_centered(44, f"やらかし連続{self.consecutive_mishaps}回…", C_ORANGE, self.font_s)
+        text_centered(62, "AIが独立を宣言した！", C_WHITE, self.font_s)
+
+        # Naviko comment
+        pyxel.rect(0, 86, WIDTH, 44, C_NAVY)
+        pyxel.rectb(0, 86, WIDTH, 44, C_DGRAY)
+        self._draw_naviko_icon(2, 92)
+        comment = self._scene_comment
+        lines = comment.split("\n")
+        pyxel.text(42, 92, lines[0], C_WHITE, self.font_s)
+        if len(lines) > 1:
+            pyxel.text(42, 106, lines[1], C_WHITE, self.font_s)
+        if len(lines) > 2:
+            pyxel.text(42, 120, lines[2], C_WHITE, self.font_s)
+
+        # Rebellion choice buttons
+        reb_labels = [
+            "力で鎮圧する（-500G）",
+            "交渉で解決する（ギャンブル）",
+            "放置する",
+        ]
+        reb_colors = [C_GREEN, C_ORANGE, C_RED]
+        for i in range(3):
+            key = f"reb{i}"
+            if key in self.buttons:
+                btn = self.buttons[key]
+                pyxel.rect(btn.x, btn.y, btn.w, btn.h, C_NAVY)
+                pyxel.rectb(btn.x, btn.y, btn.w, btn.h, reb_colors[i])
+                pyxel.text(btn.x + 8, btn.y + (btn.h - 12) // 2, reb_labels[i], C_WHITE, self.font_s)
 
     def draw_ai_detail(self):
         pyxel.cls(C_BLACK)
